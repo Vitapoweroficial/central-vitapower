@@ -220,6 +220,15 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
     return j.resultado;
   }
 
+  // o botão do assistente só aparece para quem está liberado e quando a chave do Claude está configurada
+  async function assistenteAtivo() {
+    try {
+      const { data } = await sb.auth.getSession();
+      const r = await fetch("/api/assistente", { headers: { authorization: "Bearer " + data.session?.access_token } });
+      return r.ok && (await r.json()).ativo === true;
+    } catch (e) { return false; }
+  }
+
   /* ---------- a interface que o app usa ---------- */
   const servicos = {
     db: { collection: colecao },
@@ -241,6 +250,7 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
     async use(nome) {
       if (!(nome in servicos)) return null;
       await pronto;
+      if (nome === "sample" && !(await assistenteAtivo())) return null;
       return servicos[nome];
     },
   };

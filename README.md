@@ -12,6 +12,7 @@ App de tarefas, projetos e páginas do time VitaPower. Login por e-mail (link de
 ## Quem tem acesso
 
 Qualquer e-mail `@vitapowernutrition.com.br`, mais os e-mails cadastrados na tabela `central_membros`.
+O assistente aparece só para os e-mails em `ASSISTENTE_EMAILS` (variável na Vercel, separados por vírgula; `*` libera para todos). Sem essa variável, só o Andrew.
 Itens marcados "Só eu" ficam visíveis apenas para quem os criou.
 
 ## Configuração

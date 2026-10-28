@@ -5,6 +5,9 @@ import { createClient } from "@supabase/supabase-js";
 const SB_URL = process.env.SUPABASE_URL || "https://tlbufqzembztbhcfdccg.supabase.co";
 const SB_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_nhB_rsCG-ZEn6we-wVXhEQ_vBzPvU5p";
 const MAX_CHARS = 400_000;
+// Quem pode usar o assistente (cada uso é cobrado na conta da API). Troque pela variável ASSISTENTE_EMAILS na Vercel.
+const LIBERADOS = (process.env.ASSISTENTE_EMAILS || "andrew@vitapowernutrition.com.br")
+  .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 
 const anthropic = new Anthropic();
 
@@ -34,7 +37,7 @@ function lerJson(texto) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return falha(res, 405, "method", "Use POST");
+  if (req.method !== "POST" && req.method !== "GET") return falha(res, 405, "method", "Use POST");
 
   const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!token) return falha(res, 401, "session_expired", "Entre de novo");
@@ -47,6 +50,10 @@ export default async function handler(req, res) {
   // central_perfis só é visível para quem é do time (RLS)
   const { data: perfil } = await sb.from("central_perfis").select("id").eq("id", u.user.id).maybeSingle();
   if (!perfil) return falha(res, 403, "not_granted", "Conta fora do time");
+  const liberado = LIBERADOS.includes("*") || LIBERADOS.includes((u.user.email || "").toLowerCase());
+  // GET só diz ao app se deve mostrar o botão do assistente
+  if (req.method === "GET") return res.status(200).json({ ativo: liberado && !!process.env.ANTHROPIC_API_KEY });
+  if (!liberado) return falha(res, 403, "not_granted", "Assistente não liberado para esta conta");
 
   const messages = normalizar(Array.isArray(req.body?.messages) ? req.body.messages : []);
   if (!messages.length || messages[messages.length - 1].role !== "user") return falha(res, 400, "invalid_request", "Conversa vazia");
