@@ -1,0 +1,10 @@
+{
+  "name": "central-vitapower",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.133.0",
+    "@supabase/supabase-js": "2.117.3"
+  }
+}
