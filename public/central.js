@@ -9,7 +9,7 @@
   const sb = window.supabase.createClient(SB_URL, SB_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" },
   });
-  window.CENTRAL = { sb };
+  window.CENTRAL = { modo: "vercel", sb };
 
   let uid = null, email = "", meuNome = "";
   let liberar;
@@ -244,7 +244,7 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
         return out;
       },
     },
-    sample: { json: assistente },
+    sample: { json: assistente, limits: async () => ({ maxPromptBytes: 262144 }) },
   };
   window.claude = {
     async use(nome) {

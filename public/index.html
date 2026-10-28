@@ -448,6 +448,13 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
 .iaf{display:flex;gap:8px;padding:10px 14px 14px;align-items:flex-end}
 .iaf textarea{resize:none;min-height:42px;max-height:140px}
 .btn.ia-b{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 55%,var(--p3)));color:var(--accent-fg);border-color:transparent}
+.iaanx{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px 0}
+.iaanx span{display:inline-flex;align-items:center;gap:4px;font-size:12px;background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;max-width:100%}
+.iaanx span b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.iaanx .xbtn{padding:0 6px;font-size:14px}
+.iaf #iaClip{padding:8px 10px}
+.dropov{position:fixed;inset:0;z-index:95;background:color-mix(in srgb,var(--accent) 16%,transparent);border:3px dashed var(--accent);display:grid;place-items:center;pointer-events:none}
+.dropov div{background:var(--surface);color:var(--fg);border-radius:12px;padding:14px 18px;font-weight:600;box-shadow:var(--pop)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -606,11 +613,13 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
   <div class="iah"><span style="font-size:20px">✨</span><b>Assistente<small>Lê suas tarefas e projetos. Nada muda sem você aplicar.</small></b><button class="btn sm" type="button" id="iaNovo" title="Começar uma conversa nova">Nova conversa</button><button class="xbtn" type="button" id="iaX" aria-label="Fechar assistente">×</button></div>
   <div class="iam" id="iaMsgs" aria-live="polite"></div>
   <div class="iasug" id="iaSug"></div>
-  <form class="iaf" id="iaForm" autocomplete="off"><textarea id="iaTexto" rows="1" placeholder="Peça algo ao assistente…" aria-label="Mensagem para o assistente"></textarea><button class="btn primary" type="submit" id="iaEnviar">Enviar</button><button class="btn" type="button" id="iaParar" hidden>Parar</button></form>
+  <div class="iaanx" id="iaAnx" hidden></div><form class="iaf" id="iaForm" autocomplete="off"><button class="btn" type="button" id="iaClip" title="Anexar foto, print ou PDF" aria-label="Anexar arquivo" hidden>📎</button><input type="file" id="iaArq" multiple hidden><textarea id="iaTexto" rows="1" placeholder="Peça algo ao assistente…" aria-label="Mensagem para o assistente"></textarea><button class="btn primary" type="submit" id="iaEnviar">Enviar</button><button class="btn" type="button" id="iaParar" hidden>Parar</button></form>
 </aside>
+<div class="dropov" id="dropOv" hidden><div>Solte aqui: o assistente lê o arquivo e organiza no app</div></div>
 <div class="toast" id="toast" role="status"></div>
 <div id="tip" role="tooltip"></div>
 <script>
+const cUse=n=>(window.CENTRAL_USE||(x=>window.claude?.use?.(x)))(n);
 const COLS=[{id:"afazer",nome:"A fazer",c:"--c-afazer"},{id:"fazendo",nome:"Fazendo",c:"--c-fazendo"},{id:"aguardando",nome:"Aguardando",c:"--c-aguardando"},{id:"feito",nome:"Feito",c:"--c-feito"}];
 const PRIO={alta:["Alta","--danger"],media:["Média","--warn"],baixa:["Baixa","--line"]};
 const CORES=["p1","p2","p3","p4","p5","p6","p7","p8"];
@@ -1668,7 +1677,7 @@ async function sbRestaurar(){
 async function iniciarBackup(){if(window.CENTRAL)return;
   souDono=false;try{souDono=!!(userNs&&await userNs.isOwner())}catch(e){}
   if(!souDono){sbDiag=userNs?"A cópia para o Supabase é feita pela conta do dono da página. O que você lançar para o time fica salvo aqui e vai para o Supabase quando o dono abrir a página. Seus itens pessoais ficam só com você.":"Não foi possível identificar sua conta nesta tela. Abra a página pelo claude.ai para ativar a cópia no Supabase.";sbStatus("info");return}
-  try{sbMcp=await window.claude?.use?.("mcp")}catch(e){sbMcp=null}
+  try{sbMcp=await cUse("mcp")}catch(e){sbMcp=null}
   if(!sbMcp){sbDiag="Esta tela não consegue usar os conectores do Claude. Abra a página pelo claude.ai (navegador ou aplicativo) para ativar a cópia no Supabase.";sbStatus("erro");return}
   sbAtivo=true;sbStatus("off");agendarBackup(1500);
   setInterval(()=>{if(!sbRodando){sbRemoto=null;agendarBackup(500)}},30*60*1000);
@@ -1683,7 +1692,7 @@ const isoOk=v=>typeof v==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v)?v:null;
 function iaAbrir(texto){$("#ia").classList.add("on");$("#ia").setAttribute("aria-hidden","false");$("#app").classList.remove("aberta");if(!iaMsgs.children.length)iaBoasVindas();iaSugestoes();if(texto)$("#iaTexto").value=texto;setTimeout(()=>{const x=$("#iaTexto");x.focus();x.setSelectionRange(x.value.length,x.value.length)},60)}
 function iaFechar(){$("#ia").classList.remove("on");$("#ia").setAttribute("aria-hidden","true")}
 function iaBolha(quem,tx){const d=document.createElement("div");d.className="msg "+quem;d.textContent=tx;iaMsgs.appendChild(d);iaMsgs.scrollTop=iaMsgs.scrollHeight;return d}
-function iaBoasVindas(){iaBolha("bot","Oi! Eu leio suas tarefas e projetos e posso:\n- montar um projeto inteiro, com tarefas e prazos, a partir de uma frase\n- resumir a semana e apontar o que está atrasado ou parado\n- dizer o que priorizar hoje\n- reorganizar prazos e prioridades\nQuando eu sugerir mudanças, você revisa e clica em Aplicar.")}
+function iaBoasVindas(){iaBolha("bot","Oi! Eu leio suas tarefas e projetos e posso:\n- ler fotos, prints e PDFs (cotações, formulações, briefings) e transformar em página com tabela ou em projeto: arraste o arquivo para cá ou use o 📎\n- montar um projeto inteiro, com tarefas e prazos, a partir de uma frase\n- resumir a semana e apontar o que está atrasado ou parado\n- dizer o que priorizar hoje\n- reorganizar prazos e prioridades\nQuando eu sugerir mudanças, você revisa e clica em Aplicar.")}
 function iaSugestoes(){const p=vista==="projeto"?projDe(projAberto):null;
   const l=[["📋 Resumo da semana","Faça um resumo da minha semana: o que foi concluído, o que está atrasado, o que está parado aguardando e os riscos dos projetos."],["🎯 O que priorizar hoje?","O que eu devo priorizar hoje? Me dê uma lista curta e ordenada, com o motivo de cada item."],["🗓️ Reorganizar atrasadas","Proponha novos prazos realistas para as tarefas atrasadas, distribuindo ao longo das próximas duas semanas sem sobrecarregar nenhum dia."],["🚀 Montar um projeto",null]];
   if(p)l.unshift([`🧩 Planejar “${p.nome}”`,`Analise o projeto “${p.nome}” (id ${p.id}) e proponha as tarefas que faltam para concluir as entregas no prazo, com datas escalonadas e prioridades.`]);
@@ -1702,22 +1711,27 @@ Você recebe o estado atual do app em JSON e o pedido da pessoa. Responda SOMENT
 {"tipo":"criar_projeto","ref":"P1","nome":"...","descricao":"...","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","entregas":["marco 1","marco 2"]}
 {"tipo":"criar_tarefa","titulo":"...","descricao":"...","projeto":"id de projeto existente, ou a ref de um criar_projeto desta resposta, ou null","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","status":"afazer|fazendo|aguardando","checklist":["passo"],"visibilidade":"eu|time"}
 {"tipo":"alterar_tarefa","id":"id de tarefa existente","mudancas":{"status":"afazer|fazendo|aguardando|feito","prazo":"AAAA-MM-DD ou null","inicio":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","titulo":"...","projeto":"id ou null"}}
+{"tipo":"criar_pagina","titulo":"...","icone":"um emoji","espaco":"time|eu","html":"conteúdo em HTML simples, só com h2, h3, p, ul, ol, li, b, i, blockquote, hr e table/thead/tbody/tr/th/td"}
+Quando a pessoa enviar arquivos (fotos, prints ou PDF de cotação, formulação, briefing, nota ou planilha): leia tudo com atenção e transcreva fielmente, sem inventar nada; nomes, números, unidades, preços e datas exatamente como no arquivo; se algo estiver ilegível, escreva [ilegível]. Cotação, formulação, lista de itens ou qualquer tabela vira criar_pagina com a tabela completa em <table> (todas as linhas) e, antes dela, um resumo curto (fornecedor, data, validade, condições de pagamento, frete e totais quando existirem). Se o arquivo descrever um projeto, lançamento ou plano com etapas, proponha também criar_projeto com as tarefas. Na dúvida, crie a página. Use "espaco":"time" salvo se a pessoa pedir que seja só dela.
 Regras: use só ids que aparecem no estado; em "mudancas" inclua só o que muda; nunca exclua nada; datas a partir de hoje (${hoje()}), evitando sábados e domingos; ao montar um projeto, quebre em 6 a 15 tarefas concretas com prazos escalonados e coerentes com o prazo do projeto; use "visibilidade":"time" para tarefas de projetos do time; no máximo 30 ações; na "resposta" explique em poucas linhas o que propôs.`}
 function iaErro(e){const c=e&&e.code;
   return c==="not_configured"?"O assistente ainda não foi configurado no servidor (falta a chave do Claude na Vercel).":c==="not_granted"?"Sua conta não tem acesso ao assistente.":c==="rate_limited"?"Muitos pedidos seguidos ou limite de uso atingido. Tente de novo daqui a pouco.":c==="sampling_disabled"?"O Claude não está disponível para esta conta.":c==="session_expired"?"Sua sessão expirou. Recarregue a página e entre de novo.":c==="invalid_json"?"Não consegui organizar a resposta. Tente pedir de outro jeito, ou menos coisas de uma vez.":c==="prompt_too_large"?"Há dados demais para analisar de uma vez. Peça sobre um projeto específico.":c==="refused"?"Não posso ajudar com esse pedido.":"A conexão falhou. Tente de novo."}
 function iaSync(){$("#iaEnviar").hidden=iaOcupado;$("#iaParar").hidden=!iaOcupado;$("#iaTexto").disabled=iaOcupado;$("#iaSug").querySelectorAll("button").forEach(b=>b.disabled=iaOcupado)}
 async function iaEnviar(txt){
-  txt=String(txt||"").trim();if(!txt||iaOcupado)return;if(!iaSample){iaBolha("bot erro","O assistente não está disponível agora. Recarregue a página.");return}
-  iaBolha("eu",txt);$("#iaTexto").value="";const pens=iaBolha("bot pens","Pensando…");iaOcupado=true;iaSync();iaCtl=new AbortController();
-  const turnos=[{role:"user",content:iaRegras()+"\n\nESTADO ATUAL DO APP:\n"+JSON.stringify(iaEstado())},...iaTurnos.slice(-8),{role:"user",content:txt}];
-  try{const r=await iaSample.json(turnos,{cache:false,signal:iaCtl.signal});
+  txt=String(txt||"").trim();const anx=iaAnexos.slice();if((!txt&&!anx.length)||iaOcupado)return;if(!txt)txt="Leia o arquivo anexo e organize no app.";if(!iaSample){iaBolha("bot erro","O assistente não está disponível agora. Recarregue a página.");return}
+  iaBolha("eu",txt+(anx.length?"\n📎 "+anx.map(f=>f.name).join(", "):""));$("#iaTexto").value="";iaLimparAnexos();const pens=iaBolha("bot pens",anx.length?"Lendo o arquivo…":"Pensando…");iaOcupado=true;iaSync();iaCtl=new AbortController();
+  let imgs=[],extra="";
+  if(anx.length){try{({imgs,extra}=await iaPrepArquivos(anx));pens.textContent="Pensando…"}catch(e){pens.remove();iaBolha("bot erro",(e&&e.message)||"Não consegui ler o arquivo.");iaOcupado=false;iaCtl=null;iaSync();return}}
+  const turnos=[{role:"user",content:iaRegras()+"\n\nESTADO ATUAL DO APP:\n"+JSON.stringify(iaEstado())},...iaTurnos.slice(-8),{role:"user",content:txt+extra}];
+  try{const r=await iaSample.json(turnos,{cache:false,signal:iaCtl.signal,...(imgs.length?{images:imgs}:{})});
     const resp=String((r&&r.resposta)||"").trim()||"Pronto.",acoes=Array.isArray(r&&r.acoes)?r.acoes.filter(a=>a&&typeof a==="object").slice(0,30):[];
     pens.remove();iaBolha("bot",resp);const n=acoes.length?iaPlano(acoes):0;
-    iaTurnos.push({role:"user",content:txt},{role:"assistant",content:resp+(n?`\n(Propus ${n} ações para a pessoa revisar.)`:"")});
+    iaTurnos.push({role:"user",content:txt+(anx.length?` (com o arquivo ${anx.map(f=>f.name).join(", ")})`:"")},{role:"assistant",content:resp+(n?`\n(Propus ${n} ações para a pessoa revisar.)`:"")});
   }catch(e){pens.remove();if(!(e&&e.code==="cancelled"))iaBolha("bot erro",iaErro(e))}
   finally{iaOcupado=false;iaCtl=null;iaSync();$("#iaTexto").focus()}}
 function iaDescr(a,refs){
   const nomeP=v=>projDe(v)?.nome||refs[v]||"";
+  if(a.tipo==="criar_pagina")return ["📄","Nova página"+(a.espaco==="eu"?" pessoal":" do time"),`${a.icone?a.icone+" ":""}${a.titulo||"(sem título)"}${/<table/i.test(a.html||"")?" · com tabela":""}`];
   if(a.tipo==="criar_projeto")return ["🗂️","Novo projeto",`${a.nome||"(sem nome)"}${isoOk(a.prazo)?" · prazo "+fmtData(a.prazo):""}${(a.entregas||[]).length?` · ${a.entregas.length} entregas`:""}`];
   if(a.tipo==="criar_tarefa")return ["＋","Nova tarefa",`${a.titulo||"(sem título)"}${nomeP(a.projeto)?" · "+nomeP(a.projeto):""}${isoOk(a.prazo)?" · "+fmtData(a.prazo):""}${a.prioridade==="alta"?" · prioridade alta":""}`];
   if(a.tipo==="alterar_tarefa"){const t=todas().find(x=>x.id===a.id);if(!t)return null;const m=a.mudancas||{},ps=[];
@@ -1741,6 +1755,12 @@ function iaPlano(acoes){
   iaMsgs.appendChild(box);iaMsgs.scrollTop=iaMsgs.scrollHeight;return it.length}
 async function iaAplicar(acoes){
   const mapa={};let ok=0,f=0,np=0;const podeEu=modoLocal||!!colEu;
+  let pgNova=null;
+  for(const a of acoes.filter(a=>a.tipo==="criar_pagina")){const esp=a.espaco==="eu"&&podeEu?"p":"t";
+    if(!modoLocal&&((esp==="p"&&!colEu)||(esp==="t"&&!colPg))){f++;continue}
+    const p={id:novoId(),titulo:String(a.titulo||"Nova página").slice(0,200),icone:[...String(a.icone||"📄")].slice(0,2).join("")||"📄",parentId:null,conteudo:sanitizar(String(a.html||"")),ordem:Date.now(),criadoPor:meuId||null};
+    if(await salvarPag(p,esp)){ok++;pgNova={id:p.id,esp}}else f++}
+  if(pgNova)setTimeout(()=>ir("pagina",{pg:pgNova}),400);
   for(const a of acoes.filter(a=>a.tipo==="criar_projeto")){
     const p={id:novoId(),criadoPor:meuId||null,nome:String(a.nome||"Novo projeto").slice(0,140),descricao:String(a.descricao||"").slice(0,2000),inicio:isoOk(a.inicio),prazo:isoOk(a.prazo),status:"ativo",cor:CORES[(projetos.length+np++)%CORES.length],entregas:(Array.isArray(a.entregas)?a.entregas:[]).slice(0,30).map(t=>({id:novoId(),t:String(t).slice(0,200),ok:false}))};
     if(p.inicio&&p.prazo&&p.inicio>p.prazo)[p.inicio,p.prazo]=[p.prazo,p.inicio];
@@ -1758,6 +1778,42 @@ async function iaAplicar(acoes){
       if(COLS.some(c=>c.id===m.status))p.status=m.status;if("prazo" in m)p.prazo=isoOk(m.prazo);if("inicio" in m)p.inicio=isoOk(m.inicio);if(PRIO[m.prioridade])p.prioridade=m.prioridade;if(m.titulo)p.titulo=String(m.titulo).slice(0,200);if("projeto" in m)p.projetoId=pid(m.projeto);
       if(!Object.keys(p).length)continue;if(await alterarTarefa(t,p))ok++;else f++}}
   toast(f?`${ok} aplicadas, ${f} com erro`:`${ok} ${plural(ok,"mudança aplicada","mudanças aplicadas")} ✓`,3000);return {ok,f}}
+/* anexos do assistente: fotos e prints vão como imagem; PDF vai como texto e, quando dá, as primeiras páginas como imagem */
+let iaAnexos=[],iaLim=null,dragN=0;
+function carregarScript(src){return new Promise((ok,err)=>{if(document.querySelector(`script[data-src="${src}"]`)&&window.__ok?.[src])return ok();const s=document.createElement("script");s.src=src;s.dataset.src=src;s.onload=()=>{(window.__ok=window.__ok||{})[src]=1;ok()};s.onerror=()=>err(new Error("Não consegui carregar o leitor de PDF. Verifique a internet."));document.head.appendChild(s)})}
+const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+async function pdfLib(){await carregarScript(PDFJS+"pdf.min.js");const lib=window.pdfjsLib;try{lib.GlobalWorkerOptions.workerSrc=PDFJS+"pdf.worker.min.js"}catch(e){}return lib}
+async function pdfLer(buf){const lib=await pdfLib();const pdf=await lib.getDocument({data:buf,isEvalSupported:false}).promise;let t="";
+  for(let p=1;p<=Math.min(pdf.numPages,30);p++){const pg=await pdf.getPage(p);const c=await pg.getTextContent();let y=null,linha=[];
+    c.items.forEach(it=>{const yy=Math.round(it.transform[5]);if(y!==null&&Math.abs(yy-y)>2){t+=linha.join(" ")+"\n";linha=[]}y=yy;linha.push(it.str)});t+=linha.join(" ")+"\n\n"}
+  return {texto:t,pdf}}
+async function pdfPaginas(pdf,max){const out=[];for(let p=1;p<=Math.min(pdf.numPages,max);p++){const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:1.6});const cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;
+  await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;out.push(await new Promise(r=>cv.toBlob(r,"image/jpeg",0.85)))}return out}
+async function iaPrepArquivos(fs){const li=iaLim?.images,max=li?li.maxCount:0,imgs=[];let extra="";
+  for(const f of fs){const n=(f.name||"").toLowerCase();
+    if(f.type==="application/pdf"||n.endsWith(".pdf")){const {texto,pdf}=await pdfLer(await f.arrayBuffer());
+      extra+=`\n\n[Texto extraído do PDF “${f.name}”, ${pdf.numPages} ${plural(pdf.numPages,"página","páginas")}]\n`+texto.slice(0,60000);
+      const resta=max-imgs.length;if(resta>0)imgs.push(...await pdfPaginas(pdf,resta))}
+    else if(f.type.startsWith("image/")){if(!li)throw new Error("Nesta tela o assistente não lê imagens. Envie o PDF ou cole o texto.");
+      if(!li.mediaTypes.includes(f.type))throw new Error(`O formato de “${f.name}” não é aceito. Use JPG, PNG ou WebP (um print de tela funciona).`);
+      if(f.size>li.maxInputBytes)throw new Error(`A imagem “${f.name}” é grande demais.`);
+      if(imgs.length>=max)throw new Error(`Envie no máximo ${max} imagens por vez.`);imgs.push(f)}
+    else if(/^text\//.test(f.type)||/\.(txt|csv|md|json|tsv)$/.test(n)){extra+=`\n\n[Conteúdo do arquivo “${f.name}”]\n`+(await f.text()).slice(0,60000)}
+    else throw new Error(`Ainda não consigo ler “${f.name}”. Envie como foto, print, PDF ou texto.`)}
+  if(imgs.length)extra+=`\n\n(Seguem ${imgs.length} ${plural(imgs.length,"imagem","imagens")} do(s) arquivo(s) ${fs.map(f=>f.name).join(", ")}.)`;
+  return {imgs,extra}}
+function iaRenderAnexos(){const el=$("#iaAnx");el.hidden=!iaAnexos.length;el.innerHTML=iaAnexos.map((f,i)=>`<span>📎 <b>${esc(f.name||"imagem colada")}</b><button class="xbtn" type="button" data-ax="${i}" aria-label="Tirar anexo">×</button></span>`).join("")}
+function iaLimparAnexos(){iaAnexos=[];iaRenderAnexos()}
+function iaAddArquivos(fs){fs=[...fs].filter(Boolean);if(!fs.length)return;iaAnexos=iaAnexos.concat(fs).slice(0,10);iaRenderAnexos();$("#iaTexto").focus()}
+$("#iaAnx").addEventListener("click",e=>{const b=e.target.closest("[data-ax]");if(!b)return;iaAnexos.splice(+b.dataset.ax,1);iaRenderAnexos()});
+$("#iaClip").addEventListener("click",()=>$("#iaArq").click());
+$("#iaArq").addEventListener("change",e=>{iaAddArquivos(e.target.files);e.target.value=""});
+$("#iaTexto").addEventListener("paste",e=>{const fs=[...(e.clipboardData?.files||[])];if(fs.length&&iaSample){e.preventDefault();iaAddArquivos(fs)}});
+const temArq=e=>[...(e.dataTransfer?.types||[])].includes("Files");
+document.addEventListener("dragenter",e=>{if(!iaSample||!temArq(e))return;dragN++;$("#dropOv").hidden=false});
+document.addEventListener("dragleave",e=>{if(!iaSample||!temArq(e))return;if(--dragN<=0){dragN=0;$("#dropOv").hidden=true}});
+document.addEventListener("dragover",e=>{if(iaSample&&temArq(e))e.preventDefault()});
+document.addEventListener("drop",e=>{if(!iaSample||!temArq(e))return;e.preventDefault();dragN=0;$("#dropOv").hidden=true;if(e.dataTransfer.files.length){iaAbrir();iaAddArquivos(e.dataTransfer.files)}});
 $("#btnIA").addEventListener("click",()=>iaAbrir());$("#navIA").addEventListener("click",()=>iaAbrir());$("#iaX").addEventListener("click",iaFechar);
 $("#iaNovo").addEventListener("click",()=>{if(iaOcupado)return;iaTurnos=[];iaMsgs.innerHTML="";iaBoasVindas()});
 $("#iaParar").addEventListener("click",()=>iaCtl?.abort());
@@ -1765,15 +1821,16 @@ $("#iaForm").addEventListener("submit",e=>{e.preventDefault();iaEnviar($("#iaTex
 $("#iaTexto").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();iaEnviar(e.target.value)}});
 $("#iaTexto").addEventListener("input",e=>{const x=e.target;x.style.height="auto";x.style.height=Math.min(140,x.scrollHeight)+"px"});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#ia").classList.contains("on")&&!document.querySelector("dialog[open]"))iaFechar()});
-(async()=>{try{iaSample=await window.claude?.use?.("sample")}catch(e){iaSample=null}if(iaSample){$("#btnIA").hidden=false;$("#navIA").hidden=false}})();
+(async()=>{try{iaSample=await cUse("sample")}catch(e){iaSample=null}if(iaSample){$("#btnIA").hidden=false;$("#navIA").hidden=false;try{iaLim=await iaSample.limits?.()}catch(e){iaLim=null}
+  $("#iaClip").hidden=false;$("#iaArq").accept=[...(iaLim?.images?.mediaTypes||[]),"application/pdf",".pdf",".txt",".csv"].join(",")}})();
 
 /* ---------- início ---------- */
 render();
 (async()=>{
-  try{db=await window.claude?.use?.("db")}catch(e){db=null}
+  try{db=await cUse("db")}catch(e){db=null}
   if(!db){modoLocal=true;const s=lsGet("tarefas-local",{});pessoais=(s.pessoais||[]).map(t=>({...t,_priv:true}));compart=(s.compart||[]).map(t=>({...t,_priv:false}));projetos=s.projetos||[];pagT=s.pagT||[];pagP=s.pagP||[];campos=s.campos||[];
-    aviso("Modo arquivo: tudo fica salvo só neste navegador. Para ver no celular e com o time, abra a página pelo link do Claude.");render();return}
-  try{userNs=await window.claude?.use?.("user");meuId=userNs?await userNs.id():null}catch(e){userNs=null;meuId=null}
+    if(window.CENTRAL?.aviso){podeEscrever=false;aviso(window.CENTRAL.aviso)}else aviso("Modo arquivo: tudo fica salvo só neste navegador. Para ver no celular e com o time, abra a página pelo link do Claude.");render();return}
+  try{userNs=await cUse("user");meuId=userNs?await userNs.id():null}catch(e){userNs=null;meuId=null}
   try{if(userNs?.me){const me=await userNs.me();if(me?.name)$("#quem").textContent=me.name}}catch(e){}
   try{if(userNs?.can&&(await userNs.can("data.write"))===false){podeEscrever=false;aviso("Você pode ver o que é do time, mas não alterar. Peça acesso de editor a quem compartilhou a página.")}}catch(e){}
   colT=db.collection("tarefas");colP=db.collection("projetos");colPg=db.collection("paginas");colCfg=db.collection("config");
