@@ -1,0 +1,24 @@
+name: Testes
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  testes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Banco (Postgres local, RLS, histórico e lixeira)
+        run: bash tests/db/run.sh
+      - name: Instalar Chromium para os testes de interface
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Interface (app no Chromium com banco falso)
+        run: node --test tests/e2e/central.test.mjs
