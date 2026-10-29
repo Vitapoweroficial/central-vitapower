@@ -101,6 +101,22 @@
     return perfis;
   }
 
+  /* ---------- histórico de versões e lixeira (mesmas tabelas da Vercel) ---------- */
+  const nomeApp = (c) => (c.startsWith("pessoal:") ? "pessoal" : c);
+  const nomeBanco = (c) => (c === "pessoal" ? "pessoal:" + DONO : c);
+  const visiveis = () => [...TIMES, "pessoal:" + DONO].map(lit).join(",");
+  const historico = {
+    async lixeira() {
+      const rows = await sql(`select colecao, doc_id, dados, em, por::text as por from public.central_lixeira where colecao in (${visiveis()}) order by em desc limit 200`);
+      return rows.map((r) => ({ colecao: nomeApp(r.colecao), id: r.doc_id, dados: r.dados, em: r.em, por: r.por }));
+    },
+    async versoes(colecao, id) {
+      const rows = await sql(`select id, operacao, dados, em, por::text as por from public.central_docs_historico where colecao = ${lit(nomeBanco(colecao))} and doc_id = ${lit(id)} order by id desc limit 100`);
+      return rows.map((r) => ({ n: r.id, operacao: r.operacao, dados: r.dados, em: r.em, por: r.por }));
+    },
+  };
+  let temHistorico = null;
+
   let pronto = null;
   function iniciar() {
     if (pronto) return pronto;
@@ -135,6 +151,11 @@
           return out;
         },
       };
+    }
+    if (nome === "historico") {
+      try { await iniciar(); } catch (e) { return null; }
+      if (temHistorico === null) temHistorico = await sql("select to_regclass('public.central_docs_historico') is not null as ok").then((r) => !!r[0]?.ok, () => false);
+      return temHistorico ? historico : null;
     }
     if (nome === "mcp") return null; // a cópia de segurança antiga não é mais necessária: os dados já estão no Supabase
     return window.claude?.use?.(nome);

@@ -455,6 +455,16 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
 .iaf #iaClip{padding:8px 10px}
 .dropov{position:fixed;inset:0;z-index:95;background:color-mix(in srgb,var(--accent) 16%,transparent);border:3px dashed var(--accent);display:grid;place-items:center;pointer-events:none}
 .dropov div{background:var(--surface);color:var(--fg);border-radius:12px;padding:14px 18px;font-weight:600;box-shadow:var(--pop)}
+/* histórico de versões e lixeira */
+.lx{display:grid;gap:8px}
+.lxi,.vi{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.lxi .lxic{font-size:18px;flex:0 0 auto}
+.lxi .lxt,.vi>div{flex:1 1 auto;min-width:0;display:grid;gap:2px}
+.lxi .lxt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lxi small,.vi small{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.vl{display:grid;gap:6px;max-height:min(60vh,520px);overflow:auto}
+.vi{font-size:13px;padding:8px 10px}
+.vatual{font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -469,6 +479,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <button type="button" class="ni" data-go="minhas"><span class="ic">✅</span><span class="tx">Minhas tarefas</span><span class="n" id="nMinhas"></span></button>
       <button type="button" class="ni" data-go="time"><span class="ic">👥</span><span class="tx">Tarefas do time</span><span class="n" id="nTime"></span></button>
       <button type="button" class="ni" data-go="projetos"><span class="ic">🗂️</span><span class="tx">Projetos</span><span class="n" id="nProj"></span></button>
+      <button type="button" class="ni" data-go="lixeira" id="navLix" hidden><span class="ic">🗑️</span><span class="tx">Lixeira</span></button>
     </nav>
     <div class="sec"><div class="sech"><span>🔒 Pessoal</span><button type="button" id="addPessoal" title="Nova página pessoal" aria-label="Nova página pessoal">+</button></div><div class="tree" id="treeP"></div></div>
     <div class="sec"><div class="sech"><span>Time</span><button type="button" id="addTime" title="Nova página do time" aria-label="Nova página do time">+</button></div><div class="tree" id="treeT"></div></div>
@@ -508,10 +519,11 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       </section>
       <section id="vProjetos" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsPst"></div><div class="pgrid" id="pgrid"></div></div></section>
       <section id="vHoje" hidden><div id="hoje" class="hj"></div></section>
+      <section id="vLixeira" hidden><div class="lx" id="lixeira"></div></section>
       <section id="vPainel" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsRespP"></div><div id="painel" style="display:grid;gap:12px"></div></div></section>
       <section id="vPagina" hidden>
         <div class="pg">
-          <div class="pgbar"><div class="crumbs" id="crumbs"></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="pgSalvo"></span><button class="btn sm" type="button" id="pgMover"></button><button class="btn sm danger" type="button" id="pgExcluir">Excluir</button></div></div>
+          <div class="pgbar"><div class="crumbs" id="crumbs"></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="pgSalvo"></span><button class="btn sm" type="button" id="pgMover"></button><button class="btn sm" type="button" id="pgVer" hidden>Versões</button><button class="btn sm danger" type="button" id="pgExcluir">Excluir</button></div></div>
           <div class="trava" id="pgTrava" hidden></div>
           <div class="pgtop"><button class="pgic" id="pgIcone" type="button" aria-label="Trocar ícone">📄</button><input class="pgt" id="pgTitulo" placeholder="Sem título" autocomplete="off" aria-label="Título da página"></div>
           <div class="pgmeta" id="pgMeta"></div>
@@ -574,8 +586,8 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <div class="coms" id="tComs"></div>
       <div class="ckrow"><textarea id="tComTx" rows="1" placeholder="Escreva um comentário… (Enter envia)"></textarea><button class="mv" type="button" id="tComAdd">Comentar</button></div></div>
     <div class="hist" id="tHist" hidden></div>
-    <div class="actions" id="tActs"><button class="btn danger sp" type="button" id="tDel" hidden>Excluir</button><button class="btn" type="button" id="tCancel">Cancelar</button><button class="btn primary" type="submit" id="tSalvar">Salvar</button></div>
-    <div class="actions confirm" id="tConf" hidden><span class="sp">Excluir esta tarefa de vez?</span><button class="btn" type="button" id="tConfN">Não</button><button class="btn danger solid" type="button" id="tConfS">Sim, excluir</button></div>
+    <div class="actions" id="tActs"><button class="btn danger sp" type="button" id="tDel" hidden>Excluir</button><button class="btn" type="button" id="tVer" hidden>Versões</button><button class="btn" type="button" id="tCancel">Cancelar</button><button class="btn primary" type="submit" id="tSalvar">Salvar</button></div>
+    <div class="actions confirm" id="tConf" hidden><span class="sp" id="tConfTx">Excluir esta tarefa de vez?</span><button class="btn" type="button" id="tConfN">Não</button><button class="btn danger solid" type="button" id="tConfS">Sim, excluir</button></div>
   </form>
 </dialog>
 
@@ -594,7 +606,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <div style="display:grid;gap:6px"><span style="font-size:12px;color:var(--muted);font-weight:500">Checklist do projeto (entregas e marcos)</span>
       <div class="cklist" id="pCk"></div>
       <div class="ckrow"><input type="text" id="pCkNovo" placeholder="Ex.: Aprovar fórmula, registrar na ANVISA… e tecle Enter" autocomplete="off"><button class="mv" type="button" id="pCkAdd">+ Item</button></div></div>
-    <div class="actions" id="pActs"><button class="btn danger sp" type="button" id="pDel" hidden>Excluir</button><button class="btn" type="button" id="pCancel">Cancelar</button><button class="btn primary" type="submit">Salvar</button></div>
+    <div class="actions" id="pActs"><button class="btn danger sp" type="button" id="pDel" hidden>Excluir</button><button class="btn" type="button" id="pVer" hidden>Versões</button><button class="btn" type="button" id="pCancel">Cancelar</button><button class="btn primary" type="submit">Salvar</button></div>
     <div class="actions confirm" id="pConf" hidden><span class="sp" id="pConfTx">Excluir este projeto?</span><button class="btn" type="button" id="pConfN">Não</button><button class="btn danger solid" type="button" id="pConfS">Sim, excluir</button></div>
   </form>
 </dialog>
@@ -607,6 +619,14 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <div class="row" style="align-items:end"><label>Novo campo<input id="cNome" autocomplete="off" placeholder="Ex.: Cliente, Etiquetas, Valor"></label><label>Tipo<select id="cTipo"><option value="selecao">Seleção (uma opção)</option><option value="multi">Etiquetas (várias opções)</option><option value="texto">Texto</option><option value="numero">Número</option><option value="moeda">Valor em R$</option><option value="data">Data</option><option value="caixa">Caixa de marcar</option><option value="link">Link</option></select></label></div>
     <div><button class="btn" type="button" id="cAdd">+ Adicionar campo</button></div>
     <div class="actions"><button class="btn" type="button" id="cCancel">Cancelar</button><button class="btn primary" type="submit">Salvar campos</button></div>
+  </form>
+</dialog>
+<dialog id="dlgV">
+  <form class="f" method="dialog">
+    <h3 id="vTit">Versões</h3>
+    <p class="sub" style="margin:0">Cada vez que alguém salva, a versão fica guardada. Restaurar não apaga nada: a versão atual também continua aqui.</p>
+    <div class="vl" id="vLista"></div>
+    <div class="actions"><button class="btn" type="button" id="vFechar">Fechar</button></div>
   </form>
 </dialog>
 <aside class="ia" id="ia" aria-label="Assistente" aria-hidden="true">
@@ -647,7 +667,7 @@ function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}ca
 
 let db=null,userNs=null,meuId=null,souDono=false,podeEscrever=true,modoLocal=false;
 let compart=[],pessoais=[],projetos=[],pagT=[],pagP=[],campos=[],nomesU={},pessoasOrg=[];
-let colT=null,colP=null,colEu=null,colPg=null,colCfg=null;
+let colT=null,colP=null,colEu=null,colPg=null,colCfg=null,hist=null;
 let vista=lsGet("tarefas-vista","hoje"),projAberto=null,pgAtual=null,fProj="",fResp="",fRapido="",fPrio="",fCampo="",busca="",verArq=false,editT=null,editP=null;
 if(!["minhas","time","projetos","painel","hoje"].includes(vista))vista="hoje";
 let modo=lsGet("tarefas-modo","kanban"),agrupar=lsGet("tarefas-agrupar","status"),sortL=lsGet("tarefas-sort",{k:"prazo",d:1}),gpFechados=new Set(lsGet("tarefas-gpfechados",[])),abertos=new Set(lsGet("tarefas-arvore",[]));
@@ -716,6 +736,7 @@ async function ir(v,extra){
   await flushPagina();
   vista=v;projAberto=extra?.proj||null;pgAtual=extra?.pg||null;fRapido="";fResp="";
   if(["minhas","time","projetos","painel","hoje"].includes(v))lsSet("tarefas-vista",v);
+  if(v==="lixeira")carregarLixeira();
   $("#app").classList.remove("aberta");render();window.scrollTo({top:0});
 }
 $("#navAt").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)ir(b.dataset.go)});
@@ -731,6 +752,7 @@ function renderSide(){
   $("#nTime").textContent=compart.filter(ab).length||"";
   $("#nProj").textContent=projetos.filter(p=>(p.status||"ativo")==="ativo").length||"";
   document.querySelectorAll("#navAt [data-go]").forEach(b=>b.classList.toggle("on",b.dataset.go===vista||(vista==="projeto"&&b.dataset.go==="projetos")));
+  $("#navLix").hidden=!hist;
   const q=chave($("#sbusca").value);
   [["p","#treeP"],["t","#treeT"]].forEach(([esp,sel])=>{const el=$(sel),ps=pagsDe(esp);el.innerHTML="";
     if(esp==="p"&&!colEu&&!modoLocal){el.innerHTML=`<div class="tvazio">Indisponível nesta tela.</div>`;return}
@@ -752,11 +774,11 @@ $("#addPessoal").addEventListener("click",()=>criarPagina("p",null));
 $("#addTime").addEventListener("click",()=>criarPagina("t",null));
 
 /* ---------- render geral ---------- */
-const TITULOS={hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."]};
+const TITULOS={hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
 function render(){
   renderSide();
   const quadro=vista==="minhas"||vista==="time"||vista==="projeto",pag=vista==="pagina";
-  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vPagina").hidden=!pag;
+  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vLixeira").hidden=vista!=="lixeira";$("#vPagina").hidden=!pag;
   $("#tools").hidden=pag||vista==="projetos"&&false;$("#hbtns").hidden=pag;
   if(!pag){const t=vista==="projeto"?[projDe(projAberto)?.nome||"Projeto","Tarefas, entregas e prazos deste projeto."]:TITULOS[vista];$("#titulo").textContent=t[0];$("#subt").textContent=t[1]}
   renderFiltros(quadro);
@@ -767,6 +789,7 @@ function render(){
   if(vista==="projetos"){renderProjetos();return}
   if(vista==="painel"){renderPainel();return}
   if(vista==="hoje"){renderHoje();return}
+  if(vista==="lixeira"){renderLixeira();return}
   renderPHead();renderChipsResp($("#chipsResp"),filtradas(true));
   const base=filtradas();renderAlerta(base);const vis=aplicaRapido(base);
   const m=modoEf();["board","lista","grupos","calend","linha"].forEach(k=>$("#"+k).hidden=true);
@@ -780,7 +803,7 @@ function render(){
 const modoEf=()=>vista==="projeto"&&modo==="grupo"?"kanban":modo;
 function renderFiltros(quadro){
   const painel=vista==="painel",projs=vista==="projetos";
-  $("#tools").hidden=vista==="pagina"||vista==="hoje";
+  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="lixeira";
   const mv=$("#modoVis");mv.hidden=!quadro;mv.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b.dataset.m===modoEf());b.hidden=b.dataset.m==="grupo"&&vista==="projeto"});
   $("#busca").placeholder=projs?"Buscar projeto…":"Buscar tarefa…";
   $("#fProj").hidden=!(quadro||painel)||vista==="projeto";$("#fPrioSel").hidden=!(quadro||painel);$("#fPrioSel").value=fPrio;
@@ -1275,7 +1298,8 @@ function abrirTarefa(t,padrao){
   ["#tSubNovo","#tLinkNome","#tLinkUrl","#tComTx"].forEach(s=>$(s).value="");$("#tPai").dataset.v="0";renderExtrasDlg(d);
   const h=(d.historico||[]).slice().reverse(),hb=$("#tHist");hb.hidden=n||!(h.length||d.criadoEm);
   hb.innerHTML=`<b>Histórico</b><ol>${h.map(x=>`<li>${fmtDT(x.em)} · ${esc(COLS.find(c=>c.id===x.de)?.nome||"")} → ${esc(COLS.find(c=>c.id===x.para)?.nome||"")}${x.por&&x.por!==meuId&&nomesU[x.por]?` <small>por ${esc(nomesU[x.por])}</small>`:""}</li>`).join("")}${d.criadoEm?`<li>${fmtDT(d.criadoEm)} · criada${d.criadoPor&&d.criadoPor!==meuId&&nomesU[d.criadoPor]?" por "+esc(nomesU[d.criadoPor]):""}</li>`:""}</ol>`;
-  $("#tDel").hidden=n||!podeEscrever;$("#tConf").hidden=true;$("#tActs").hidden=false;
+  $("#tDel").hidden=n||!podeEscrever;$("#tConf").hidden=true;$("#tActs").hidden=false;$("#tVer").hidden=n||!hist;
+  $("#tConfTx").textContent=hist?"Excluir esta tarefa? Ela fica na Lixeira e pode voltar.":"Excluir esta tarefa de vez?";
   [...$("#frmT").elements].forEach(el=>{if(el.id!=="tCancel"&&!(el.id==="tVisEu"&&semEu))el.disabled=!podeEscrever});
   $("#dlgT").showModal();setTimeout(()=>{if(n)$("#tTitulo").focus()},30);
 }
@@ -1357,7 +1381,7 @@ function abrirProjeto(p,cb){editP=p||null;aoCriarProj=cb||null;
   $("#pCores").innerHTML=CORES.map(c=>`<label style="--pc:var(--${c})" title="Cor"><input type="radio" name="pCor" value="${c}" ${c===cor?"checked":""} aria-label="Cor ${c.slice(1)}"></label>`).join("");
   ckP=JSON.parse(JSON.stringify(p?.entregas||[]));renderCkEm($("#pCk"),ckP);$("#pCkNovo").value="";
   $("#lModP").hidden=!!p;$("#pMod").innerHTML=`<option value="">Projeto em branco</option>${Object.entries(MODPROJ).map(([k,m])=>`<option value="${k}">${esc(m.nome)} (${m.t.length} tarefas)</option>`).join("")}`;$("#pMod").value="";$("#pModInfo").textContent="";
-  $("#pDel").hidden=!p||!podeEscrever;$("#pConf").hidden=true;$("#pActs").hidden=false;
+  $("#pDel").hidden=!p||!podeEscrever;$("#pConf").hidden=true;$("#pActs").hidden=false;$("#pVer").hidden=!p||!hist;
   $("#dlgP").showModal();setTimeout(()=>$("#pNome").focus(),30)}
 $("#pCancel").addEventListener("click",()=>$("#dlgP").close());
 $("#pMod").addEventListener("change",e=>{const m=MODPROJ[e.target.value];$("#pModInfo").textContent=m?`${m.desc} Cria ${m.t.length} tarefas do time com prazos a partir do início e ${m.entregas.length} entregas.`:"";
@@ -1466,7 +1490,7 @@ function renderPagina(){
   $("#pgTrava").hidden=!pgTrava;if(pgTrava)$("#pgTrava").innerHTML=`🔒 <span></span> <button class="mv" type="button" id="pgRetravar">Tentar de novo</button>`,$("#pgTrava span").textContent=`${pgTravaQuem||"Outra pessoa"} está editando esta página agora. Você pode ler, mas não alterar.`;
   const autor=p.editadoPor&&p.editadoPor!==meuId?(nomesU[p.editadoPor]||"alguém do time"):"você";
   $("#pgMeta").textContent=p.atualizadoEm?`Editada por ${autor} em ${fmtDT(p.atualizadoEm)}`:"";
-  $("#pgMover").hidden=!podeEscrever||(!colEu&&!modoLocal);$("#pgMover").textContent=pgAtual.esp==="p"?"Mover para o Time":"Mover para Pessoal";$("#pgExcluir").hidden=!podeEscrever||pgTrava;
+  $("#pgMover").hidden=!podeEscrever||(!colEu&&!modoLocal);$("#pgMover").textContent=pgAtual.esp==="p"?"Mover para o Time":"Mover para Pessoal";$("#pgExcluir").hidden=!podeEscrever||pgTrava;$("#pgVer").hidden=!hist;
   $("#modelos").hidden=!pode||!!ed.textContent.trim()||!!ed.querySelector("hr,table,li");
   if(!$("#modelos").hidden)$("#modelos").innerHTML=`<span>Começar com um modelo:</span>${Object.entries(MODELOS).map(([k,m])=>`<button class="btn sm" type="button" data-mod="${k}">${m.ic} ${m.nome}</button>`).join("")}`;
   const fs=filhos(ps,p.id);
@@ -1580,7 +1604,7 @@ const MODELOS={
 $("#modelos").addEventListener("click",e=>{const b=e.target.closest("[data-mod]");if(!b||!editavel())return;const m=MODELOS[b.dataset.mod];ed.innerHTML=m.html();if(!$("#pgTitulo").value.trim())$("#pgTitulo").value=m.titulo();pgIcone=m.ic;$("#pgIcone").textContent=pgIcone;marcaVazio();$("#modelos").hidden=true;pgMarcar();ed.focus()});
 /* mover e excluir */
 $("#pgExcluir").addEventListener("click",async()=>{const ref=pgAtual,p=pagDe(ref);if(!p)return;const ds=descendentes(pagsDe(ref.esp),p.id);
-  if(!await confirmar(`Excluir “${p.titulo||"Sem título"}”${ds.length?` e ${ds.length} ${plural(ds.length,"página dentro dela","páginas dentro dela")}`:""}?${ref.esp==="t"&&souDono?"\n\nA cópia no Supabase continua guardada no histórico.":""}`,"Excluir"))return;
+  if(!await confirmar(`Excluir “${p.titulo||"Sem título"}”${ds.length?` e ${ds.length} ${plural(ds.length,"página dentro dela","páginas dentro dela")}`:""}?${hist?"\n\nElas ficam na Lixeira e podem voltar.":ref.esp==="t"&&souDono?"\n\nA cópia no Supabase continua guardada no histórico.":""}`,"Excluir"))return;
   pgSujo=false;clearTimeout(pgTimer);for(const d of [...ds].reverse())await excluirPag(d,ref.esp);if(await excluirPag(p,ref.esp)){pgCarregado=null;toast("Página excluída");const pai=p.parentId&&pagsDe(ref.esp).find(x=>x.id===p.parentId);if(pai)ir("pagina",{pg:{id:pai.id,esp:ref.esp}});else ir("minhas")}});
 $("#pgMover").addEventListener("click",async()=>{const ref=pgAtual,p=pagDe(ref);if(!p)return;const para=ref.esp==="p"?"t":"p",ds=descendentes(pagsDe(ref.esp),p.id);
   if(!await confirmar(`Mover “${p.titulo||"Sem título"}”${ds.length?` e ${ds.length} ${plural(ds.length,"página dentro dela","páginas dentro dela")}`:""} para ${para==="t"?"o Time? Todo o time vai ver e poder editar.":"o seu espaço Pessoal? Só você vai ver."}`,"Mover"))return;
@@ -1684,6 +1708,54 @@ async function iniciarBackup(){if(window.CENTRAL)return;
   window.addEventListener("beforeunload",e=>{if(sbAtivo&&sbTentou&&(sbRodando||sbPendentes()))e.preventDefault()});
 }
 $("#btnBk").addEventListener("click",()=>sbDialogo(false));
+
+/* ---------- histórico de versões e lixeira ---------- */
+/* O banco grava uma versão a cada criação, alteração e exclusão; aqui só lemos e, para restaurar, gravamos de volta pelo caminho normal. */
+const refDe=c=>({tarefas:colT,projetos:colP,paginas:colPg,config:colCfg,pessoal:colEu})[c]||null;
+const OPS_H={criar:"Criado",editar:"Alterado",excluir:"Excluído"};
+const CAMPOS_H={titulo:"título",nome:"nome",descricao:"detalhes",status:"situação",prazo:"prazo",inicio:"início",prioridade:"prioridade",respId:"responsável",respNome:"responsável",projetoId:"projeto",aguardando:"aguardando",checklist:"checklist",comentarios:"comentários",links:"links",dependeDe:"dependências",paiId:"tarefa principal",recorrencia:"repetição",campos:"campos",arquivado:"arquivado",conteudo:"conteúdo",icone:"ícone",parentId:"lugar na árvore",cor:"cor",foco:"foco do dia"};
+function difCampos(a,b){if(!a||!b)return[];return[...new Set(Object.keys(CAMPOS_H).filter(k=>JSON.stringify(a[k]??null)!==JSON.stringify(b[k]??null)).map(k=>CAMPOS_H[k]))]}
+const quemFez=por=>!por?"":por===meuId?"você":(nomesU[por]||"alguém do time");
+const tituloDe=d=>d?.titulo||d?.nome||"(sem título)";
+const tipoDe=(c,d)=>c==="projetos"?["🗂️","Projeto"]:c==="paginas"||d?.tipo==="pagina"?["📄","Página"]:["✅","Tarefa"];
+let lixItens=null,lixVis=[],lixErro="";
+async function carregarLixeira(){if(!hist)return;lixItens=null;lixErro="";renderLixeira();
+  try{lixItens=await hist.lixeira();const ids=[...new Set(lixItens.map(x=>x.por).filter(x=>x&&!(x in nomesU)))];if(ids.length&&userNs?.profiles){const ps=await userNs.profiles(ids).catch(()=>({}));ids.forEach(id=>{nomesU[id]=ps?.[id]?.name||""})}}
+  catch(e){lixErro="Não foi possível carregar a lixeira. Verifique a internet e tente de novo."}
+  if(vista==="lixeira")renderLixeira()}
+function renderLixeira(){const el=$("#lixeira");
+  if(lixErro){el.innerHTML=`<div class="falta-msg">${esc(lixErro)}</div>`;return}
+  if(!lixItens){el.innerHTML=`<div class="empty">Carregando…</div>`;return}
+  lixVis=lixItens.filter(x=>x.colecao!=="config"&&(x.colecao!=="pessoal"||colEu));
+  if(!lixVis.length){el.innerHTML=`<div class="empty">A lixeira está vazia. O que for excluído aparece aqui e pode voltar com um clique.</div>`;return}
+  el.innerHTML=lixVis.map((x,i)=>{const[ic,tp]=tipoDe(x.colecao,x.dados),q=quemFez(x.por);
+    return `<div class="lxi"><span class="lxic" aria-hidden="true">${ic}</span><div class="lxt"><b>${esc(tituloDe(x.dados))}</b><small>${tp}${x.colecao==="pessoal"?" · 🔒 só você":""} · excluído em ${fmtDT(x.em)}${q?" por "+esc(q):""}</small></div>${podeEscrever?`<button class="btn sm" type="button" data-lxr="${i}">Restaurar</button>`:""}</div>`}).join("")}
+$("#lixeira").addEventListener("click",async e=>{const b=e.target.closest("[data-lxr]");if(!b)return;const x=lixVis[+b.dataset.lxr],ref=x&&refDe(x.colecao);
+  if(!ref||!x.dados){toast("Este item não pode ser restaurado nesta tela");return}
+  b.disabled=true;
+  try{await ref.doc(x.id).set(x.dados);lixItens=lixItens.filter(y=>y!==x);renderLixeira();toast(`“${curtoT(tituloDe(x.dados))}” restaurado`,2500)}
+  catch(err){b.disabled=false;erroGravar(err,"o item")}});
+let verCtx=null;
+async function abrirVersoes(colecao,id,titulo,aoRestaurar){if(!hist||!id)return;
+  verCtx={colecao,id,aoRestaurar,itens:null};$("#vTit").textContent="Versões · "+curtoT(titulo);$("#vLista").innerHTML=`<div class="empty">Carregando…</div>`;$("#dlgV").showModal();
+  const ctx=verCtx;let itens;try{itens=await hist.versoes(colecao,id)}catch(e){if(verCtx===ctx)$("#vLista").innerHTML=`<div class="falta-msg">Não foi possível carregar as versões. Tente de novo.</div>`;return}
+  const ids=[...new Set(itens.map(v=>v.por).filter(x=>x&&!(x in nomesU)))];if(ids.length&&userNs?.profiles){const ps=await userNs.profiles(ids).catch(()=>({}));ids.forEach(i=>{nomesU[i]=ps?.[i]?.name||""})}
+  if(verCtx!==ctx)return;ctx.itens=itens;renderVersoes()}
+function renderVersoes(){const it=verCtx.itens;
+  if(!it.length){$("#vLista").innerHTML=`<div class="empty">Nenhuma versão guardada ainda. A partir da próxima alteração, cada versão aparece aqui.</div>`;return}
+  $("#vLista").innerHTML=it.map((v,i)=>{const mud=v.operacao==="editar"?difCampos(it[i+1]?.dados,v.dados):[],q=quemFez(v.por),atual=i===0&&v.operacao!=="excluir";
+    return `<div class="vi"><div><span><b>${OPS_H[v.operacao]||esc(v.operacao)}</b> · ${fmtDT(v.em)}${q?" · "+esc(q):""}${atual?' <span class="vatual">atual</span>':""}</span><small>${esc(curtoT(tituloDe(v.dados)))}${mud.length?" · mudou: "+esc(mud.join(", ")):""}</small></div>${!atual&&podeEscrever&&v.dados&&v.operacao!=="excluir"?`<button class="btn sm" type="button" data-vr="${i}">Restaurar esta</button>`:""}</div>`}).join("")}
+$("#vLista").addEventListener("click",async e=>{const b=e.target.closest("[data-vr]");if(!b||!verCtx?.itens)return;const ctx=verCtx,v=ctx.itens[+b.dataset.vr],ref=refDe(ctx.colecao);if(!v||!ref)return;
+  if(!await confirmar(`Voltar para a versão de ${fmtDT(v.em)}?\n\nA versão atual continua guardada aqui no histórico.`,"Restaurar"))return;
+  const d={...v.dados,atualizadoEm:new Date().toISOString()};if(d.tipo==="pagina")d.editadoPor=meuId||null;
+  b.disabled=true;
+  try{await ref.doc(ctx.id).set(d);$("#dlgV").close();toast("Versão restaurada",2500);ctx.aoRestaurar?.()}catch(err){b.disabled=false;erroGravar(err,"a versão")}});
+$("#vFechar").addEventListener("click",()=>$("#dlgV").close());
+$("#dlgV").addEventListener("close",()=>{verCtx=null});
+$("#tVer").addEventListener("click",()=>{const t=editT;if(t)abrirVersoes(t._priv?"pessoal":"tarefas",t.id,t.titulo,()=>$("#dlgT").close())});
+$("#pVer").addEventListener("click",()=>{const p=editP;if(p)abrirVersoes("projetos",p.id,p.nome,()=>$("#dlgP").close())});
+$("#pgVer").addEventListener("click",async()=>{const ref=pgAtual,p=pagDe(ref);if(!p)return;await salvarPaginaAtual();
+  abrirVersoes(ref.esp==="p"?"pessoal":"paginas",p.id,p.titulo||"Sem título",()=>{pgCarregado=null;render()})});
 
 /* ---------- assistente com IA ---------- */
 let iaSample=null,iaTurnos=[],iaCtl=null,iaOcupado=false;
@@ -1843,6 +1915,7 @@ render();
   else{sbVistas.add("pessoal");sbProntas.add("pessoal");aviso("Não foi possível identificar sua conta: os itens “Só eu” ficam indisponíveis nesta tela. O que é do time funciona normalmente.")}
   carregarPessoas();
   iniciarBackup();
+  try{hist=await cUse("historico")}catch(e){hist=null}if(hist)render();
 })();
 </script>
 
