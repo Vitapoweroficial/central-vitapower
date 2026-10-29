@@ -461,7 +461,10 @@ language sql immutable set search_path = '' as $$
               else '{}' end
     when p_colecao = 'paginas' or x->>'tipo' = 'pagina' then jsonb_build_object('titulo', '') || x
     else x end
-  from (select central_priv.sem_nulos(d) as x) s
+  -- lista vazia de dependências ou comentários equivale a não ter a lista (o app lê as duas como [])
+  from (select central_priv.sem_nulos(d)
+          - case when d->'dependeDe' = '[]'::jsonb then 'dependeDe' else '' end
+          - case when d->'comentarios' = '[]'::jsonb then 'comentarios' else '' end as x) s
 $$;
 
 -- Conferência: lista o que ficou diferente entre central_docs e central_itens (vazio = cópia perfeita)
