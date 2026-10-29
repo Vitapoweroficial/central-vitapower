@@ -2,9 +2,16 @@
   "name": "central-vitapower",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",
     "@supabase/supabase-js": "2.117.3"
+  },
+  "scripts": {
+    "test": "npm run test:db && npm run test:e2e",
+    "test:db": "bash tests/db/run.sh",
+    "test:e2e": "node --test tests/e2e/central.test.mjs"
   }
 }

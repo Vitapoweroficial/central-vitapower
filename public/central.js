@@ -229,6 +229,32 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
     } catch (e) { return false; }
   }
 
+  /* ---------- histórico de versões e lixeira (tabela central_docs_historico, gravada pelo banco) ---------- */
+  const nomeApp = (c) => (c.startsWith("pessoal:") ? "pessoal" : c);
+  const nomeBanco = (c) => (c === "pessoal" ? "pessoal:" + uid : c);
+  const historico = {
+    async lixeira() {
+      const { data, error } = await sb.from("central_lixeira").select("colecao,doc_id,dados,em,por").order("em", { ascending: false }).limit(200);
+      if (error) throw error;
+      return data.map((r) => ({ colecao: nomeApp(r.colecao), id: r.doc_id, dados: r.dados, em: r.em, por: r.por }));
+    },
+    async versoes(colecao, id) {
+      const { data, error } = await sb.from("central_docs_historico").select("id,operacao,dados,em,por")
+        .eq("colecao", nomeBanco(colecao)).eq("doc_id", id).order("id", { ascending: false }).limit(100);
+      if (error) throw error;
+      return data.map((r) => ({ n: r.id, operacao: r.operacao, dados: r.dados, em: r.em, por: r.por }));
+    },
+  };
+  // enquanto a migração 003_historico.sql não estiver aplicada, o app simplesmente não mostra histórico e lixeira
+  let temHistorico = null;
+  async function historicoAtivo() {
+    if (temHistorico === null) {
+      const { error } = await sb.from("central_docs_historico").select("id").limit(1);
+      temHistorico = !error;
+    }
+    return temHistorico;
+  }
+
   /* ---------- a interface que o app usa ---------- */
   const servicos = {
     db: { collection: colecao },
@@ -245,12 +271,14 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
       },
     },
     sample: { json: assistente, limits: async () => ({ maxPromptBytes: 262144 }) },
+    historico,
   };
   window.claude = {
     async use(nome) {
       if (!(nome in servicos)) return null;
       await pronto;
       if (nome === "sample" && !(await assistenteAtivo())) return null;
+      if (nome === "historico" && !(await historicoAtivo())) return null;
       return servicos[nome];
     },
   };
