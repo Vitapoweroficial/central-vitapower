@@ -232,3 +232,24 @@ test("Permissões: dono restringe o projeto e quem é só leitura não altera as
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Central de Comando: conta o que pede ação e abre o registro com um clique", async () => {
+  const { page, ctx, erros } = await abrir();
+  const ontem = new Date(Date.now() - 86400000 * 2).toISOString().slice(0, 10);
+  await page.fill("#qTitulo", "Laudo vencido");
+  await page.fill("#qPrazo", ontem);
+  await page.press("#qTitulo", "Enter");
+  await page.locator("#board .card", { hasText: "Laudo vencido" }).waitFor();
+  await criarRapida(page, "Sem dono definido");
+  await page.click('#navAt [data-go="comando"]');
+  await page.locator("#comando [data-cmd=late] .kv", { hasText: "1" }).waitFor();
+  assert.match(await page.locator("#comando .hjsec").innerText(), /Laudo vencido/);
+  assert.match(await page.locator("#comando .hjsec").innerText(), /Regra:/);
+  await page.click("#comando [data-cmd=semresp]");
+  await page.locator("#comando .hjsec", { hasText: "Sem dono definido" }).waitFor();
+  await page.locator("#comando .hjsec .tt", { hasText: "Sem dono definido" }).click();
+  await page.locator("#dlgT[open]").waitFor();
+  assert.equal(await page.inputValue("#tTitulo"), "Sem dono definido");
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

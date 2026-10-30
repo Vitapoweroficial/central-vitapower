@@ -480,6 +480,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <nav class="nav" id="navAt">
       <button type="button" class="ni" id="navIA" hidden><span class="ic">✨</span><span class="tx">Assistente</span></button>
       <button type="button" class="ni" data-go="hoje"><span class="ic">☀️</span><span class="tx">Hoje</span><span class="n" id="nHoje"></span></button>
+      <button type="button" class="ni" data-go="comando"><span class="ic">🎯</span><span class="tx">Central de Comando</span><span class="n" id="nCmd"></span></button>
       <button type="button" class="ni" data-go="painel"><span class="ic">📊</span><span class="tx">Painel</span></button>
       <button type="button" class="ni" data-go="minhas"><span class="ic">✅</span><span class="tx">Minhas tarefas</span><span class="n" id="nMinhas"></span></button>
       <button type="button" class="ni" data-go="time"><span class="ic">👥</span><span class="tx">Tarefas do time</span><span class="n" id="nTime"></span></button>
@@ -525,6 +526,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <section id="vProjetos" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsPst"></div><div class="pgrid" id="pgrid"></div></div></section>
       <section id="vHoje" hidden><div id="hoje" class="hj"></div></section>
       <section id="vLixeira" hidden><div class="lx" id="lixeira"></div></section>
+      <section id="vComando" hidden><div id="comando" class="hj"></div></section>
       <section id="vPainel" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsRespP"></div><div id="painel" style="display:grid;gap:12px"></div></div></section>
       <section id="vPagina" hidden>
         <div class="pg">
@@ -676,7 +678,7 @@ let db=null,userNs=null,meuId=null,souDono=false,podeEscrever=true,modoLocal=fal
 let compart=[],pessoais=[],projetos=[],pagT=[],pagP=[],campos=[],nomesU={},pessoasOrg=[];
 let colT=null,colP=null,colEu=null,colPg=null,colCfg=null,hist=null;
 let vista=lsGet("tarefas-vista","hoje"),projAberto=null,pgAtual=null,fProj="",fResp="",fRapido="",fPrio="",fCampo="",busca="",verArq=false,editT=null,editP=null;
-if(!["minhas","time","projetos","painel","hoje"].includes(vista))vista="hoje";
+if(!["minhas","time","projetos","painel","hoje","comando"].includes(vista))vista="hoje";
 let modo=lsGet("tarefas-modo","kanban"),agrupar=lsGet("tarefas-agrupar","status"),sortL=lsGet("tarefas-sort",{k:"prazo",d:1}),gpFechados=new Set(lsGet("tarefas-gpfechados",[])),abertos=new Set(lsGet("tarefas-arvore",[]));
 if(!["kanban","lista","grupo","cal","linha"].includes(modo))modo="kanban";
 
@@ -762,7 +764,7 @@ const moverTarefa=(t,st)=>t.status===st?null:alterarTarefa(t,{status:st},st==="f
 async function ir(v,extra){
   await flushPagina();
   vista=v;projAberto=extra?.proj||null;pgAtual=extra?.pg||null;fRapido="";fResp="";
-  if(["minhas","time","projetos","painel","hoje"].includes(v))lsSet("tarefas-vista",v);
+  if(["minhas","time","projetos","painel","hoje","comando"].includes(v))lsSet("tarefas-vista",v);
   if(v==="lixeira")carregarLixeira();
   $("#app").classList.remove("aberta");render();window.scrollTo({top:0});
 }
@@ -775,6 +777,7 @@ const pagsDe=esp=>esp==="p"?pagP:pagT;
 function renderSide(){
   const ab=t=>!t.arquivado&&t.status!=="feito";
   {const h=hoje(),n=todas().filter(t=>ehMinha(t)&&ab(t)&&((t.prazo&&t.prazo<=h)||t.foco===h)).length;$("#nHoje").textContent=n||"";$("#nHoje").style.color=todas().some(t=>ehMinha(t)&&ab(t)&&t.prazo&&t.prazo<h)?"var(--danger)":""}
+  {const h=hoje(),n=todas().filter(t=>ab(t)&&!t.arquivado&&((t.prazo&&t.prazo<h)||bloqueios(t).length)).length;$("#nCmd").textContent=n||"";$("#nCmd").style.color=n?"var(--danger)":""}
   $("#nMinhas").textContent=todas().filter(t=>ehMinha(t)&&ab(t)).length||"";
   $("#nTime").textContent=compart.filter(ab).length||"";
   $("#nProj").textContent=projetos.filter(p=>(p.status||"ativo")==="ativo").length||"";
@@ -801,11 +804,11 @@ $("#addPessoal").addEventListener("click",()=>criarPagina("p",null));
 $("#addTime").addEventListener("click",()=>criarPagina("t",null));
 
 /* ---------- render geral ---------- */
-const TITULOS={hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
+const TITULOS={comando:["Central de Comando","Tudo o que está travado ou pedindo ação, no time inteiro. Clique num número para ver a lista e numa linha para abrir."],hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
 function render(){
   renderSide();
   const quadro=vista==="minhas"||vista==="time"||vista==="projeto",pag=vista==="pagina";
-  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vLixeira").hidden=vista!=="lixeira";$("#vPagina").hidden=!pag;
+  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vComando").hidden=vista!=="comando";$("#vLixeira").hidden=vista!=="lixeira";$("#vPagina").hidden=!pag;
   $("#tools").hidden=pag||vista==="projetos"&&false;$("#hbtns").hidden=pag;
   if(!pag){const t=vista==="projeto"?[projDe(projAberto)?.nome||"Projeto","Tarefas, entregas e prazos deste projeto."]:TITULOS[vista];$("#titulo").textContent=t[0];$("#subt").textContent=t[1]}
   renderFiltros(quadro);
@@ -815,6 +818,7 @@ function render(){
   if(pag){renderPagina();return}
   if(vista==="projetos"){renderProjetos();return}
   if(vista==="painel"){renderPainel();return}
+  if(vista==="comando"){renderComando();return}
   if(vista==="hoje"){renderHoje();return}
   if(vista==="lixeira"){renderLixeira();return}
   renderPHead();renderChipsResp($("#chipsResp"),filtradas(true));
@@ -830,7 +834,7 @@ function render(){
 const modoEf=()=>vista==="projeto"&&modo==="grupo"?"kanban":modo;
 function renderFiltros(quadro){
   const painel=vista==="painel",projs=vista==="projetos";
-  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="lixeira";
+  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="lixeira"||vista==="comando";
   const mv=$("#modoVis");mv.hidden=!quadro;mv.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b.dataset.m===modoEf());b.hidden=b.dataset.m==="grupo"&&vista==="projeto"});
   $("#busca").placeholder=projs?"Buscar projeto…":"Buscar tarefa…";
   $("#fProj").hidden=!(quadro||painel)||vista==="projeto";$("#fPrioSel").hidden=!(quadro||painel);$("#fPrioSel").value=fPrio;
@@ -1150,6 +1154,37 @@ $("#painel").addEventListener("click",e=>{const r=e.target.closest("tr[data-id]"
   document.addEventListener("pointermove",e=>{const el=e.target.closest&&e.target.closest("[data-tip]");if(!el){if(alvo){tip.classList.remove("on");alvo=null}return}alvo=el;mostra(el,e.clientX,e.clientY)});
   document.addEventListener("scroll",()=>{tip.classList.remove("on");alvo=null},true)})();
 
+
+/* ---------- central de comando: o que pede ação no time inteiro ---------- */
+let cmdSel=lsGet("tarefas-cmd","late");
+function sinaisComando(){
+  const h=hoje(),em3=addUteis(h,3),ab=todas().filter(t=>t.status!=="feito"&&!t.arquivado);
+  const desde=(t,st)=>{const hs=(t.historico||[]).filter(x=>x.para===st).pop();return (hs?.em||t.atualizadoEm||t.criadoEm||"").slice(0,10)};
+  const ultimaAtiv=p=>todas().filter(t=>t.projetoId===p.id).map(t=>(t.atualizadoEm||t.criadoEm||"").slice(0,10)).concat([(p.atualizadoEm||p.criadoEm||"").slice(0,10)]).filter(Boolean).sort().pop()||"";
+  const ativos=projetos.filter(p=>(p.status||"ativo")==="ativo");
+  const t=(id,ic,nome,regra,l)=>({id,ic,nome,regra,tipo:"t",l:ordenar(l)});
+  return [
+    t("late","🔴","Atrasadas","prazo já passou e não está feita",ab.filter(x=>x.prazo&&x.prazo<h)),
+    t("logo","🟠","Vencem em até 3 dias úteis","prazo entre hoje e "+fmtData(em3),ab.filter(x=>x.prazo&&x.prazo>=h&&x.prazo<=em3)),
+    t("bloq","⛔","Bloqueadas","dependem de outra tarefa que ainda não terminou",ab.filter(x=>bloqueios(x).length)),
+    t("semresp","👤","Sem responsável","tarefa do time sem ninguém definido",ab.filter(x=>!x._priv&&!x.respId&&!x.respNome)),
+    t("aguard","⏳","Aguardando há mais de 7 dias","em “Aguardando” há mais de uma semana",ab.filter(x=>x.status==="aguardando"&&desde(x,"aguardando")&&difDias(h,desde(x,"aguardando"))>7)),
+    t("parada","🧊","Em andamento sem mexer há 7 dias","em “Fazendo” e sem alteração há mais de uma semana",ab.filter(x=>x.status==="fazendo"&&(x.atualizadoEm||"").slice(0,10)&&difDias(h,(x.atualizadoEm||"").slice(0,10))>7)),
+    {id:"pjatras",ic:"📁",nome:"Projetos atrasados ou em risco",regra:"prazo passou, tem tarefa atrasada ou falta 1 semana com menos de 70% pronto",tipo:"p",l:ativos.filter(p=>{const sa=saudeProj(p,statsProj(p))[0];return sa==="atras"||sa==="risco"})},
+    {id:"pjparado",ic:"💤",nome:"Projetos parados",regra:"ativos e sem nenhuma alteração há 14 dias",tipo:"p",l:ativos.filter(p=>{const u=ultimaAtiv(p);return u&&difDias(h,u)>14})},
+  ]}
+function renderComando(){
+  const sin=sinaisComando();if(!sin.some(x=>x.id===cmdSel))cmdSel="late";const atual=sin.find(x=>x.id===cmdSel);
+  const card=x=>`<button type="button" class="kpi ${x.l.length&&["late","bloq","pjatras"].includes(x.id)?"bad":""}" data-cmd="${x.id}" aria-pressed="${x.id===cmdSel}" style="text-align:left;cursor:pointer;font:inherit;color:inherit${x.id===cmdSel?";box-shadow:inset 0 -3px 0 var(--accent)":""}"><span class="kl">${x.ic} ${x.nome}</span><span class="kv">${x.l.length}</span></button>`;
+  const linhaP=p=>{const s=statsProj(p),sa=saudeProj(p,s);return `<div class="hr" data-pj="${esc(p.id)}"><span class="pj" style="--pc:var(--${p.cor||"p1"})"><i></i></span><div style="min-width:0"><div class="tt" tabindex="0">${esc(p.nome||"Projeto")}</div><div class="meta"><span>${s.feito}/${s.tot} tarefas concluídas</span>${s.late?`<span style="color:var(--danger)">${s.late} ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${p.prazo?`<span>Prazo ${fmtData(p.prazo)}</span>`:""}</div></div><div class="rs"><span class="saude ${sa[0]}">${sa[1]}</span></div></div>`};
+  $("#comando").innerHTML=`<div class="kgrid">${sin.map(card).join("")}</div>
+    <section class="hjsec"><h3>${atual.ic} ${atual.nome} <span class="num">${atual.l.length}</span><span class="hint">Regra: ${esc(atual.regra)}</span></h3>${atual.l.length?atual.l.map(atual.tipo==="p"?linhaP:linhaHoje).join(""):`<div class="hjvazio">Nada aqui. 🎉</div>`}</section>`}
+$("#comando").addEventListener("click",e=>{const b=e.target.closest("[data-cmd]");if(b){cmdSel=b.dataset.cmd;lsSet("tarefas-cmd",cmdSel);renderComando();return}
+  const pj=e.target.closest("[data-pj]");if(pj){ir("projeto",{proj:pj.dataset.pj});return}
+  const r=e.target.closest(".hr[data-id]");if(!r)return;const t=todas().find(x=>x.id===r.dataset.id);if(!t)return;
+  if(e.target.closest("[data-hjfoco]")){const on=t.foco!==hoje();alterarTarefa(t,{foco:on?hoje():null},on?"★ No foco de hoje":"Tirado do foco");return}
+  if(e.target.closest(".tt"))abrirTarefa(t)});
+$("#comando").addEventListener("change",e=>{const c=e.target.closest("[data-hjck]");if(!c)return;const t=todas().find(x=>x.id===c.closest(".hr").dataset.id);if(t)moverTarefa(t,c.checked?"feito":"afazer")});
 
 /* ---------- hoje / foco do dia ---------- */
 function linhaHoje(t){const p=projDe(t.projetoId),sp=situPrazo(t),c=COLS.find(c=>c.id===(t.status||"afazer")),foco=t.foco===hoje();
