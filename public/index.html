@@ -498,6 +498,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <div class="sec"><div class="sech"><span>🔒 Pessoal</span><button type="button" id="addPessoal" title="Nova página pessoal" aria-label="Nova página pessoal">+</button></div><div class="tree" id="treeP"></div></div>
     <div class="sec"><div class="sech"><span>Time</span><button type="button" id="addTime" title="Nova página do time" aria-label="Nova página do time">+</button></div><div class="tree" id="treeT"></div></div>
     <div class="sidefoot">
+      <button type="button" class="ni" id="btnEtapas"><span class="ic">🧭</span><span class="tx">Etapas do fluxo</span></button>
       <button type="button" class="ni" id="btnCampos"><span class="ic">⚙</span><span class="tx">Campos personalizados</span></button>
       <button class="btn bk" id="btnBk" type="button" hidden>Supabase</button>
     </div>
@@ -628,6 +629,15 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
   </form>
 </dialog>
 
+<dialog id="dlgE">
+  <form class="f" id="frmE" method="dialog">
+    <h3>Etapas do fluxo</h3>
+    <p class="sub" style="margin:0">Colunas do seu processo no kanban (escolha “Colunas: etapas do fluxo”). Cada etapa conta como uma situação — A fazer, Fazendo, Aguardando ou Feito — para prazos, Painel e Central de Comando continuarem certos.</p>
+    <div id="eLista" style="display:grid;gap:6px"></div>
+    <div class="modelos"><button class="btn sm" type="button" id="eAdd">+ Etapa</button><span>ou começar com:</span><button class="btn sm" type="button" data-emod="pd">Desenvolvimento de produto</button><button class="btn sm" type="button" data-emod="ped">Pedido e entrega</button></div>
+    <div class="actions"><button class="btn sp" type="button" id="eLimpar">Voltar ao padrão</button><button class="btn" type="button" id="eCancel">Cancelar</button><button class="btn primary" type="submit">Salvar</button></div>
+  </form>
+</dialog>
 <dialog id="dlgC">
   <form class="f" id="frmC" method="dialog">
     <h3>Campos personalizados</h3>
@@ -701,6 +711,11 @@ if(!["kanban","lista","grupo","cal","linha"].includes(modo))modo="kanban";
 const todas=()=>[...pessoais,...compart];
 const projDe=id=>projetos.find(p=>p.id===id)||null;
 const campoDe=id=>campos.find(c=>c.id===id)||null;
+/* etapas do fluxo: colunas próprias (ex.: Briefing, Formulação, Amostra…), cada uma ligada a uma situação base,
+   para os números, prazos e o Painel continuarem funcionando. A tarefa guarda "etapa"; a situação segue a da etapa. */
+let etapas=[];
+const etapaDe=id=>etapas.find(e=>e.id===id)||null;
+const etapaDaTarefa=t=>{const e=etapaDe(t.etapa),st=t.status||"afazer";return e&&e.cat===st?e:etapas.find(x=>x.cat===st)||null};
 const ehMinha=t=>t._priv||(meuId&&t.respId===meuId);
 function nomeResp(t){if(t.respId)return t.respId===meuId?"Você":(nomesU[t.respId]||"Alguém do time");return t.respNome||""}
 const iniciais=n=>(n||"?").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"?";
@@ -860,8 +875,8 @@ function renderFiltros(quadro){
   if(fCampo&&!sel.some(c=>fCampo.startsWith(c.id+":")&&(c.opcoes||[]).some(o=>fCampo===c.id+":"+o.id)))fCampo="";
   const hc=`<option value="">Todas as etiquetas</option>${sel.map(c=>`<optgroup label="${esc(c.nome)}">${(c.opcoes||[]).map(o=>`<option value="${esc(c.id+":"+o.id)}">${esc(o.nome)}</option>`).join("")}</optgroup>`).join("")}`;
   if(sc.dataset.k!==hc){sc.innerHTML=hc;sc.dataset.k=hc}sc.value=fCampo;sc.hidden=!sel.length||!(quadro||painel);
-  const ag=$("#agrupar"),ha=`<option value="status">Colunas: situação</option><option value="prio">Colunas: prioridade</option><option value="resp">Colunas: responsável</option>${campos.filter(c=>c.tipo==="selecao").map(c=>`<option value="c:${esc(c.id)}">Colunas: ${esc(c.nome)}</option>`).join("")}`;
-  if(ag.dataset.k!==ha){ag.innerHTML=ha;ag.dataset.k=ha}if(agrupar.startsWith("c:")&&!campoDe(agrupar.slice(2)))agrupar="status";ag.value=agrupar;ag.hidden=!quadro||modoEf()!=="kanban";
+  const ag=$("#agrupar"),ha=`<option value="status">Colunas: situação</option>${etapas.length?`<option value="etapa">Colunas: etapas do fluxo</option>`:""}<option value="prio">Colunas: prioridade</option><option value="resp">Colunas: responsável</option>${campos.filter(c=>c.tipo==="selecao").map(c=>`<option value="c:${esc(c.id)}">Colunas: ${esc(c.nome)}</option>`).join("")}`;
+  if(ag.dataset.k!==ha){ag.innerHTML=ha;ag.dataset.k=ha}if((agrupar.startsWith("c:")&&!campoDe(agrupar.slice(2)))||(agrupar==="etapa"&&!etapas.length))agrupar="status";ag.value=agrupar;ag.hidden=!quadro||modoEf()!=="kanban";
 }
 $("#modoVis").addEventListener("click",e=>{const b=e.target.closest("[data-m]");if(!b)return;modo=b.dataset.m;lsSet("tarefas-modo",modo);render()});
 $("#fPrioSel").addEventListener("change",e=>{fPrio=e.target.value;render()});
@@ -930,6 +945,7 @@ function extrasHtml(t){const o=[],subs=todas().filter(x=>x.paiId===t.id&&!x.arqu
 
 /* ---------- kanban com agrupamento ---------- */
 function grupoAtual(vis){
+  if(agrupar==="etapa"&&etapas.length)return {etapa:true,cols:etapas.map(e=>({id:e.id,nome:e.nome,c:`var(${COLS.find(c=>c.id===e.cat).c})`})),get:t=>etapaDaTarefa(t)?.id||"",patch:v=>{const e=etapaDe(v);return e?{etapa:e.id,status:e.cat}:null}};
   if(agrupar==="prio")return {cols:[["alta","Prioridade alta","--danger"],["media","Prioridade média","--warn"],["baixa","Prioridade baixa","--c-afazer"]].map(([id,nome,c])=>({id,nome,c:`var(${c})`})),get:t=>t.prioridade||"media",patch:v=>({prioridade:v})};
   if(agrupar==="resp"){const m=new Map();vis.forEach(t=>{const k=chaveResp(t);if(!m.has(k))m.set(k,nomeChaveResp(t))});if(!m.has("sem"))m.set("sem","Sem responsável");
     const cols=[...m.entries()].sort((a,b)=>(a[0]==="sem")-(b[0]==="sem")||a[1].localeCompare(b[1],"pt-BR")).map(([id,nome])=>({id,nome,c:"var(--accent)"}));
@@ -966,7 +982,7 @@ function cartao(t,g,ci){
   const tags=campos.map(c=>htmlCampo(t,c,true)).filter(Boolean).join(" ");
   d.innerHTML=`<div class="t"></div>
     ${tags?`<div class="meta">${tags}</div>`:""}
-    <div class="meta">${p&&vista!=="projeto"?`<span class="pj" style="--pc:var(--${p.cor||"p1"})"><i></i><span class="pjn"></span></span>`:""}${sp?`<span class="due ${sp.c}">${esc(sp.tx)}</span>`:""}${ck.length?`<span class="ck num ${okc===ck.length?"full":""}">☑ ${okc}/${ck.length}</span>`:""}${extrasHtml(t)}${!g.status&&t.status!=="afazer"?`<span class="stp" style="--c:var(${COLS.find(c=>c.id===t.status)?.c})">${COLS.find(c=>c.id===t.status)?.nome}</span>`:""}${t._priv&&vista!=="minhas"?`<span class="lock">🔒 só você</span>`:""}${!t._priv&&vista==="minhas"?`<span class="lock">time</span>`:""}${rn&&!t._priv&&agrupar!=="resp"?`<span style="margin-left:auto;display:inline-flex;gap:5px;align-items:center"><span class="av" title="${esc(rn)}">${esc(iniciais(rn))}</span>${vista==="time"?`<span>${esc(rn)}</span>`:""}</span>`:""}</div>
+    <div class="meta">${p&&vista!=="projeto"?`<span class="pj" style="--pc:var(--${p.cor||"p1"})"><i></i><span class="pjn"></span></span>`:""}${sp?`<span class="due ${sp.c}">${esc(sp.tx)}</span>`:""}${ck.length?`<span class="ck num ${okc===ck.length?"full":""}">☑ ${okc}/${ck.length}</span>`:""}${extrasHtml(t)}${etapas.length&&!g.etapa&&etapaDaTarefa(t)?`<span class="stp" style="--c:var(${COLS.find(c=>c.id===etapaDaTarefa(t).cat).c})">${esc(etapaDaTarefa(t).nome)}</span>`:""}${!g.status&&!g.etapa&&t.status!=="afazer"?`<span class="stp" style="--c:var(${COLS.find(c=>c.id===t.status)?.c})">${COLS.find(c=>c.id===t.status)?.nome}</span>`:""}${t._priv&&vista!=="minhas"?`<span class="lock">🔒 só você</span>`:""}${!t._priv&&vista==="minhas"?`<span class="lock">time</span>`:""}${rn&&!t._priv&&agrupar!=="resp"?`<span style="margin-left:auto;display:inline-flex;gap:5px;align-items:center"><span class="av" title="${esc(rn)}">${esc(iniciais(rn))}</span>${vista==="time"?`<span>${esc(rn)}</span>`:""}</span>`:""}</div>
     ${t.status==="aguardando"&&t.aguardando?`<div class="wait"></div>`:""}
     <div class="moves"></div>`;
   d.querySelector(".t").textContent=t.titulo||"(sem título)";
@@ -1061,7 +1077,7 @@ function renderPHead(){const el=$("#pHead");if(vista!=="projeto"){el.hidden=true
   const s=statsProj(p),sp=p.prazo?difDias(p.prazo,hoje()):null;
   el.hidden=false;el.style.setProperty("--pc",`var(--${p.cor||"p1"})`);
   el.innerHTML=`<div class="info"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="mv" type="button" data-ph="voltar">← Projetos</button><span class="pst ${p.status||"ativo"}">${PST[p.status||"ativo"]}</span>${p.acesso==="restrito"?`<span class="papel">🔒 Restrito · ${(p.membros||[]).length} ${plural((p.membros||[]).length,"pessoa","pessoas")}</span>`:""}${p._papel?`<span class="papel">Você: ${NOMES_PAPEL[p._papel]}</span>`:""}${p.inicio?`<span class="lock">Início ${fmtData(p.inicio)}</span>`:""}${p.prazo?`<span class="due ${p.status!=="concluido"&&sp<0?"late":sp===0?"today":""}">Prazo ${fmtData(p.prazo)}${p.status!=="concluido"&&sp<0?" · atrasado":""}</span>`:""}</div>${p.descricao?`<p class="sub pd"></p>`:""}
-    ${barra(s)}<div class="pnums"><span><b>${s.feito}</b>/${s.tot} tarefas concluídas</span><span><b>${s.fazendo}</b> fazendo</span><span><b>${s.aguardando}</b> aguardando</span><span><b>${s.afazer}</b> a fazer</span>${s.late?`<span class="late"><b>${s.late}</b> ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${s.en?`<span><b>${s.enOk}</b>/${s.en} entregas</span>`:""}</div>
+    ${barra(s)}<div class="pnums">${s.tot+s.en?`<span title="Fórmula: (tarefas concluídas + entregas concluídas) ÷ (todas as tarefas + todas as entregas) = (${s.feito} + ${s.enOk}) ÷ (${s.tot} + ${s.en})">Progresso <b>${Math.round((s.feito+s.enOk)/(s.tot+s.en)*100)}%</b> <small>= (${s.feito}+${s.enOk}) ÷ (${s.tot}+${s.en})</small></span>`:""}<span><b>${s.feito}</b>/${s.tot} tarefas concluídas</span><span><b>${s.fazendo}</b> fazendo</span><span><b>${s.aguardando}</b> aguardando</span><span><b>${s.afazer}</b> a fazer</span>${s.late?`<span class="late"><b>${s.late}</b> ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${s.en?`<span><b>${s.enOk}</b>/${s.en} entregas</span>`:""}</div>
     ${s.en?`<div class="ents">${(p.entregas||[]).map((x,i)=>`<label class="ent ${x.ok?"ok":""}"><input type="checkbox" data-ent="${i}" ${x.ok?"checked":""} ${podeEditarProj(p)?"":"disabled"}><span></span></label>`).join("")}</div>`:""}</div>
     ${podeEscrever?`<div class="acts"><button class="btn" type="button" data-ph="editar">${podeEditarProj(p)?"Editar projeto":"Ver projeto"}</button></div>`:""}`;
   const pd=el.querySelector(".pd");if(pd)pd.textContent=p.descricao;
@@ -1551,6 +1567,26 @@ async function salvarCampos(lista){
   if(!colCfg){toast("Carregando… tente de novo em alguns segundos");return false}
   try{await colCfg.doc("campos").set({lista,atualizadoEm:new Date().toISOString(),por:meuId||null});campos=lista;render();return true}catch(e){erroGravar(e,"os campos");return false}}
 $("#btnCampos").addEventListener("click",abrirCampos);
+let eDraft=[];
+const MOD_ETAPAS={pd:[["Briefing","afazer"],["Formulação","fazendo"],["Amostra","fazendo"],["Aprovação do cliente","aguardando"],["Regulatório","aguardando"],["Produção","fazendo"],["Entregue","feito"]],
+  ped:[["Pedido recebido","afazer"],["Separação","fazendo"],["Nota fiscal","fazendo"],["Aguardando transportadora","aguardando"],["Enviado","feito"]]};
+function abrirEtapas(){if(!podeEscrever)return;eDraft=JSON.parse(JSON.stringify(etapas));renderEDraft();$("#dlgE").showModal()}
+function renderEDraft(){$("#eLista").innerHTML=eDraft.length?eDraft.map((e,i)=>`<div class="ckrow"><input type="text" data-en="${i}" value="${esc(e.nome)}" aria-label="Nome da etapa" maxlength="40"><select data-ec="${i}" style="width:auto" aria-label="Conta como">${COLS.map(c=>`<option value="${c.id}" ${c.id===e.cat?"selected":""}>${c.nome}</option>`).join("")}</select><button class="mv" type="button" data-eup="${i}" aria-label="Subir" ${i?"":"disabled"}>↑</button><button class="xbtn" type="button" data-ex="${i}" aria-label="Remover etapa">×</button></div>`).join(""):`<div class="hjvazio">Sem etapas próprias: o kanban usa A fazer, Fazendo, Aguardando e Feito.</div>`}
+$("#btnEtapas").addEventListener("click",abrirEtapas);
+$("#eCancel").addEventListener("click",()=>$("#dlgE").close());
+$("#eAdd").addEventListener("click",()=>{eDraft.push({id:novoId(),nome:"",cat:"fazendo"});renderEDraft();$("#eLista input[data-en]:last-of-type")?.focus()});
+$("#eLimpar").addEventListener("click",()=>{eDraft=[];renderEDraft()});
+document.querySelectorAll("[data-emod]").forEach(b=>b.addEventListener("click",()=>{eDraft=MOD_ETAPAS[b.dataset.emod].map(([nome,cat])=>({id:novoId(),nome,cat}));renderEDraft()}));
+$("#eLista").addEventListener("input",e=>{const i=e.target.dataset.en;if(i!=null)eDraft[+i].nome=e.target.value});
+$("#eLista").addEventListener("change",e=>{const i=e.target.dataset.ec;if(i!=null)eDraft[+i].cat=e.target.value});
+$("#eLista").addEventListener("click",e=>{const u=e.target.closest("[data-eup]"),x=e.target.closest("[data-ex]");
+  if(u){const i=+u.dataset.eup;[eDraft[i-1],eDraft[i]]=[eDraft[i],eDraft[i-1]];renderEDraft()}
+  if(x){eDraft.splice(+x.dataset.ex,1);renderEDraft()}});
+$("#frmE").addEventListener("submit",async e=>{e.preventDefault();const lista=eDraft.map(x=>({id:x.id,nome:x.nome.trim(),cat:x.cat})).filter(x=>x.nome);
+  if(lista.length&&COLS.some(c=>!lista.some(x=>x.cat===c.id))){toast("Tenha pelo menos uma etapa para cada situação: A fazer, Fazendo, Aguardando e Feito.",4000);return}
+  if(modoLocal){etapas=lista;render();$("#dlgE").close();return}
+  if(!colCfg){toast("Carregando… tente de novo em alguns segundos");return}
+  try{await gravar(colCfg,"etapas",{lista,atualizadoEm:new Date().toISOString(),por:meuId||null},"as etapas");etapas=lista;if(lista.length){agrupar="etapa";lsSet("tarefas-agrupar",agrupar)}$("#dlgE").close();render();toast(lista.length?"Etapas salvas. O kanban agora mostra o seu fluxo.":"Voltou para as colunas padrão.")}catch(err){erroGravar(err,"as etapas")}});
 
 /* ---------- confirmação na página ---------- */
 function confirmar(msg,sim){return new Promise(res=>{let d=$("#cfDlg");if(!d){d=document.createElement("dialog");d.id="cfDlg";d.innerHTML='<form class="f" method="dialog"><h3>Confirmar</h3><p class="cfm" style="margin:0;white-space:pre-line"></p><div class="actions"><button class="btn" type="button" data-r="0">Cancelar</button><button class="btn primary" type="button" data-r="1"></button></div></form>';document.body.appendChild(d)}
@@ -2033,7 +2069,7 @@ render();
   colT.onSnapshot(s=>{sbSnap("tarefas",s);compart=s.docs.map(d=>({...d.data(),id:d.id,_priv:false}));render();atualizarNomes()},e=>aviso("A conexão com os dados caiu. Recarregue a página."));
   colP.onSnapshot(s=>{sbSnap("projetos",s);projetos=s.docs.map(d=>({...d.data(),id:d.id}));render()},()=>{});
   colPg.onSnapshot(s=>{sbSnap("paginas",s);pagT=s.docs.map(d=>({...d.data(),id:d.id}));render();atualizarNomes()},()=>{});
-  colCfg.onSnapshot(s=>{sbSnap("config",s);const d=s.docs.find(x=>x.id==="campos");campos=(d&&d.data().lista)||[];render()},()=>{});
+  colCfg.onSnapshot(s=>{sbSnap("config",s);const d=s.docs.find(x=>x.id==="campos");campos=(d&&d.data().lista)||[];const de=s.docs.find(x=>x.id==="etapas");etapas=((de&&de.data().lista)||[]).filter(e=>e&&e.id&&COLS.some(c=>c.id===e.cat));render()},()=>{});
   if(colEu)colEu.onSnapshot(s=>{sbSnap("pessoal",s);const tp=d=>(d.data()||{}).tipo;pessoais=s.docs.filter(d=>tp(d)==="tarefa").map(d=>({...d.data(),id:d.id,_priv:true}));pagP=s.docs.filter(d=>tp(d)==="pagina").map(d=>({...d.data(),id:d.id}));render()},()=>{});
   else{sbVistas.add("pessoal");sbProntas.add("pessoal");aviso("Não foi possível identificar sua conta: os itens “Só eu” ficam indisponíveis nesta tela. O que é do time funciona normalmente.")}
   carregarPessoas();

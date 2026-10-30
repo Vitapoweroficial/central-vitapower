@@ -273,3 +273,20 @@ test("Busca global: acha tarefa por comentário e projeto pelo nome, e abre com 
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Etapas do fluxo: kanban com colunas próprias e a situação acompanha a etapa", async () => {
+  const { page, ctx, erros } = await abrir();
+  await criarRapida(page, "Whey morango");
+  await page.click("#btnEtapas");
+  await page.click('[data-emod="pd"]');
+  await page.click("#frmE button[type=submit]");
+  await page.locator('#board .col-h h2', { hasText: "Formulação" }).waitFor();
+  assert.equal(await page.locator("#agrupar").inputValue(), "etapa");
+  await page.locator("#board .card", { hasText: "Whey morango" }).waitFor();
+  const col = page.locator("#board section.col", { has: page.locator(".col-h h2", { hasText: "Aprovação do cliente" }) });
+  await page.locator("#board .card", { hasText: "Whey morango" }).dragTo(col);
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.titulo === "Whey morango" && d.dados.status === "aguardando" && d.dados.etapa));
+  await col.locator(".card", { hasText: "Whey morango" }).waitFor();
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
