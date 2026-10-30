@@ -883,14 +883,14 @@ function renderFiltros(quadro){
   if(fCampo&&!sel.some(c=>fCampo.startsWith(c.id+":")&&(c.opcoes||[]).some(o=>fCampo===c.id+":"+o.id)))fCampo="";
   const hc=`<option value="">Todas as etiquetas</option>${sel.map(c=>`<optgroup label="${esc(c.nome)}">${(c.opcoes||[]).map(o=>`<option value="${esc(c.id+":"+o.id)}">${esc(o.nome)}</option>`).join("")}</optgroup>`).join("")}`;
   if(sc.dataset.k!==hc){sc.innerHTML=hc;sc.dataset.k=hc}sc.value=fCampo;sc.hidden=!sel.length||!(quadro||painel);
-  const ag=$("#agrupar"),ha=`<option value="status">Colunas: situação</option>${etapas.length?`<option value="etapa">Colunas: etapas do fluxo</option>`:""}<option value="prio">Colunas: prioridade</option><option value="resp">Colunas: responsável</option>${campos.filter(c=>c.tipo==="selecao").map(c=>`<option value="c:${esc(c.id)}">Colunas: ${esc(c.nome)}</option>`).join("")}`;
+  const ag=$("#agrupar"),ha=`<option value="status">Colunas: situação</option>${etapas.length?`<option value="etapa">Colunas: etapas do fluxo</option>`:podeEscrever?`<option value="etapa-config">Colunas: etapas do fluxo (configurar…)</option>`:""}<option value="prio">Colunas: prioridade</option><option value="resp">Colunas: responsável</option>${campos.filter(c=>c.tipo==="selecao").map(c=>`<option value="c:${esc(c.id)}">Colunas: ${esc(c.nome)}</option>`).join("")}`;
   if(ag.dataset.k!==ha){ag.innerHTML=ha;ag.dataset.k=ha}if((agrupar.startsWith("c:")&&!campoDe(agrupar.slice(2)))||(agrupar==="etapa"&&!etapas.length))agrupar="status";ag.value=agrupar;ag.hidden=!quadro||modoEf()!=="kanban";
 }
 $("#modoVis").addEventListener("click",e=>{const b=e.target.closest("[data-m]");if(!b)return;modo=b.dataset.m;lsSet("tarefas-modo",modo);render()});
 $("#fPrioSel").addEventListener("change",e=>{fPrio=e.target.value;render()});
 $("#fProj").addEventListener("change",e=>{fProj=e.target.value;render()});
 $("#fCampoSel").addEventListener("change",e=>{fCampo=e.target.value;render()});
-$("#agrupar").addEventListener("change",e=>{agrupar=e.target.value;lsSet("tarefas-agrupar",agrupar);render()});
+$("#agrupar").addEventListener("change",e=>{if(e.target.value==="etapa-config"){e.target.value=agrupar;abrirEtapas();return}agrupar=e.target.value;lsSet("tarefas-agrupar",agrupar);render()});
 $("#busca").addEventListener("input",e=>{busca=e.target.value;render()});
 
 /* ---------- filtros ---------- */
@@ -1643,7 +1643,7 @@ async function criarPagina(esp,parentId,modelo){
   if(!podeEscrever)return;if(esp==="p"&&!colEu&&!modoLocal){toast("Páginas pessoais não estão disponíveis nesta tela");return}
   if(!modoLocal&&esp==="t"&&!colPg){toast("Carregando… tente de novo em alguns segundos");return}
   const p={id:novoId(),titulo:"",icone:"📄",parentId:parentId||null,conteudo:"",ordem:Date.now(),criadoPor:meuId||null};
-  if(await salvarPag(p,esp)){if(parentId){abertos.add(parentId);lsSet("tarefas-arvore",[...abertos])}await ir("pagina",{pg:{id:p.id,esp}});setTimeout(()=>$("#pgTitulo").focus(),60)}}
+  if(await salvarPag(p,esp)){if(parentId){abertos.add(parentId);lsSet("tarefas-arvore",[...abertos])}await ir("pagina",{pg:{id:p.id,esp}});setTimeout(()=>{if(!ed.contains(document.activeElement))$("#pgTitulo").focus()},60)}}
 function editavel(){return podeEscrever&&!pgTrava&&!["aprovado","obsoleto"].includes(estadoPg(pagDe(pgAtual)))}
 function marcaVazio(){ed.classList.toggle("vazio",!ed.textContent.trim()&&!ed.querySelector("hr,table,li"))}
 function renderPagina(){
@@ -1823,8 +1823,9 @@ async function tarefaDoTrecho(){const ref=pgAtual,p=pagDe(ref),sel=getSelection(
   if(!p||!txt||!sel.rangeCount||!ed.contains(sel.anchorNode)){toast("Selecione no texto o trecho que vira tarefa.",3000);return}
   const range=sel.getRangeAt(0).cloneRange(),id=novoId(),priv=ref.esp==="p";
   const t={id,_priv:priv,titulo:txt.slice(0,200),descricao:`Criada a partir da página “${p.titulo||"Sem título"}”.`,status:"afazer",prioridade:"media",prazo:null,inicio:null,projetoId:null,respId:null,respNome:null,checklist:[],historico:[],campos:{},criadoPor:meuId||null,ordem:Date.now(),arquivado:false,origemPagina:{id:p.id,esp:ref.esp}};
-  if(!await salvarTarefa(t))return;
+  /* liga o trecho antes de gravar: se o salvamento automático da página redesenhar o texto durante a gravação, a seleção guardada se perderia */
   ed.focus();sel.removeAllRanges();sel.addRange(range);document.execCommand("createLink",false,"#tarefa-"+id);pgMarcar();
+  if(!await salvarTarefa(t)){ed.querySelectorAll(`a[href="#tarefa-${id}"]`).forEach(a=>a.replaceWith(...a.childNodes));pgMarcar();return}
   toast(priv?"Tarefa criada (só você vê) e ligada ao trecho":"Tarefa criada para o time e ligada ao trecho",3000)}
 ed.addEventListener("click",e=>{const a=e.target.closest('a[href^="#tarefa-"]');if(!a)return;e.preventDefault();const t=todas().find(x=>x.id===a.getAttribute("href").slice(8));if(t)abrirTarefa(t);else toast("Essa tarefa foi excluída ou você não tem acesso a ela.",3000)});
 $("#tOrigem").addEventListener("click",e=>{const b=e.target.closest("[data-orig]");if(!b||!editT?.origemPagina)return;$("#dlgT").close();ir("pagina",{pg:editT.origemPagina})});
