@@ -295,6 +295,7 @@ test("Documentos: trecho vira tarefa ligada, decisão registrada, aprovação tr
   const { page, ctx, erros } = await abrir();
   await page.click("#addTime");
   await page.locator("#vPagina:not([hidden])").waitFor();
+  await page.waitForFunction(() => document.activeElement?.id === "pgTitulo");
   await page.fill("#pgTitulo", "POP Envase");
   await page.click("#ed");
   await page.keyboard.type("Calibrar a balança antes do turno");
