@@ -62,6 +62,7 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);fon
 .tn .add{font:inherit;opacity:0;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:15px;padding:0 6px;border-radius:5px}
 .tn:hover .add,.tn:focus-within .add{opacity:1}
 .tn .add:hover{color:var(--fg);background:var(--line)}
+.ni.novapg{color:var(--muted)}.ni.novapg:hover{color:var(--accent)}
 .tvazio{font-size:12px;color:var(--muted);padding:2px 10px 4px 30px}
 .sidefoot{margin-top:auto;display:grid;gap:6px}
 .main{min-width:0}
@@ -825,8 +826,9 @@ function renderSide(){
   [["p","#treeP"],["t","#treeT"]].forEach(([esp,sel])=>{const el=$(sel),ps=pagsDe(esp);el.innerHTML="";
     if(esp==="p"&&!colEu&&!modoLocal){el.innerHTML=`<div class="tvazio">Indisponível nesta tela.</div>`;return}
     if(q){const l=ps.filter(p=>chave(p.titulo).includes(q));if(!l.length)el.innerHTML=`<div class="tvazio">Nada encontrado.</div>`;l.forEach(p=>el.appendChild(noArvore(p,esp,0,false)));return}
-    const raiz=filhos(ps,null);if(!raiz.length){el.innerHTML=`<div class="tvazio">${esp==="p"?"Suas anotações. Só você vê.":"Páginas que o time todo vê."}</div>`;return}
-    const add=(p,n)=>{const fs=filhos(ps,p.id);el.appendChild(noArvore(p,esp,n,fs.length>0));if(fs.length&&abertos.has(p.id))fs.forEach(f=>add(f,n+1))};raiz.forEach(p=>add(p,0))});
+    const raiz=filhos(ps,null);if(!raiz.length)el.innerHTML=`<div class="tvazio">${esp==="p"?"Suas anotações. Só você vê.":"Páginas que o time todo vê."}</div>`;
+    const add=(p,n)=>{const fs=filhos(ps,p.id);el.appendChild(noArvore(p,esp,n,fs.length>0));if(fs.length&&abertos.has(p.id))fs.forEach(f=>add(f,n+1))};raiz.forEach(p=>add(p,0));
+    if(podeEscrever){const b=document.createElement("button");b.type="button";b.className="ni novapg";b.innerHTML=`<span class="ic">＋</span><span class="tx">Nova página${esp==="p"?" pessoal":" do time"}</span>`;b.addEventListener("click",()=>criarPagina(esp,null));el.appendChild(b)}});
   $("#addPessoal").hidden=!podeEscrever||(!colEu&&!modoLocal);$("#addTime").hidden=!podeEscrever;$("#btnCampos").hidden=!podeEscrever;
 }
 function filhos(ps,pid){const ids=new Set(ps.map(p=>p.id));return ps.filter(p=>(p.parentId&&ids.has(p.parentId)?p.parentId:null)===pid).sort((a,b)=>(a.ordem||0)-(b.ordem||0))}
