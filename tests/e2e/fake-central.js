@@ -87,8 +87,8 @@
     db: { collection: colecao },
     user: {
       id: async () => UID, me: async () => ({ id: UID, name: "Pessoa de Teste" }), isOwner: async () => false, can: async () => true,
-      search: async () => [{ id: UID, name: "Pessoa de Teste" }],
-      profiles: async (ids) => Object.fromEntries(ids.filter((i) => i === UID).map((i) => [i, { name: "Pessoa de Teste" }])),
+      search: async () => [{ id: UID, name: "Pessoa de Teste" }, { id: "bbbbbbbb-0000-0000-0000-000000000002", name: "Bia Qualidade" }],
+      profiles: async (ids) => Object.fromEntries(ids.map((i) => [i, { name: i === UID ? "Pessoa de Teste" : "Bia Qualidade" }])),
     },
   };
   if (cfg.historico !== false) servicos.historico = historico;

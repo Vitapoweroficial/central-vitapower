@@ -247,6 +247,19 @@ input,textarea,select{font:inherit;color:var(--fg);background:var(--surface);bor
 .acs .mrow{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--fg)}
 .acs .mrow span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acs .mrow select{width:auto;padding:4px 6px;font-size:12.5px}
+.gbres{display:grid;gap:2px;max-height:min(60vh,520px);overflow-y:auto}
+.gbres h4{margin:8px 4px 2px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.gbi{font:inherit;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;text-align:left;border:0;background:transparent;color:var(--fg);padding:7px 8px;border-radius:8px;cursor:pointer}
+.gbi.on,.gbi:hover{background:var(--accent-soft)}
+.gbi b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbi small{grid-column:2;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbi mark{background:color-mix(in srgb,var(--warn) 30%,transparent);color:inherit;border-radius:2px}
+.aprov{border-radius:8px;padding:8px 10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--info-bg);color:var(--fg)}
+.aprov.ok{background:var(--ok-bg)}.aprov.velho{background:var(--sunk)}
+.aprov .ap{display:inline-flex;gap:4px;align-items:center;font-size:12px;background:var(--surface);border-radius:999px;padding:1px 8px}
+.doc .decisao{border-left:4px solid var(--p3);background:color-mix(in srgb,var(--p3) 10%,var(--surface));border-radius:6px;padding:8px 12px;margin:.6em 0;font-family:var(--f-body);font-size:15px}
+.doc a[href^="#tarefa-"]{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:3px;text-decoration:none;padding:0 2px}
+.doc a[href^="#tarefa-"]::after{content:" ↗";font-size:.8em}
 .papel{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
 .saude.ok{background:var(--ok-bg);color:var(--ok)}.saude.risco{background:var(--warn-bg);color:var(--warn)}.saude.atras{background:var(--danger-bg);color:var(--danger)}.saude.fim{background:var(--sunk);color:var(--muted)}
 /* painel */
@@ -479,7 +492,9 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <input type="search" id="sbusca" placeholder="Buscar páginas…" autocomplete="off" aria-label="Buscar páginas">
     <nav class="nav" id="navAt">
       <button type="button" class="ni" id="navIA" hidden><span class="ic">✨</span><span class="tx">Assistente</span></button>
+      <button type="button" class="ni" id="navBusca"><span class="ic">🔎</span><span class="tx">Buscar tudo</span><span class="n">Ctrl K</span></button>
       <button type="button" class="ni" data-go="hoje"><span class="ic">☀️</span><span class="tx">Hoje</span><span class="n" id="nHoje"></span></button>
+      <button type="button" class="ni" data-go="comando"><span class="ic">🎯</span><span class="tx">Central de Comando</span><span class="n" id="nCmd"></span></button>
       <button type="button" class="ni" data-go="painel"><span class="ic">📊</span><span class="tx">Painel</span></button>
       <button type="button" class="ni" data-go="minhas"><span class="ic">✅</span><span class="tx">Minhas tarefas</span><span class="n" id="nMinhas"></span></button>
       <button type="button" class="ni" data-go="time"><span class="ic">👥</span><span class="tx">Tarefas do time</span><span class="n" id="nTime"></span></button>
@@ -489,6 +504,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <div class="sec"><div class="sech"><span>🔒 Pessoal</span><button type="button" id="addPessoal" title="Nova página pessoal" aria-label="Nova página pessoal">+</button></div><div class="tree" id="treeP"></div></div>
     <div class="sec"><div class="sech"><span>Time</span><button type="button" id="addTime" title="Nova página do time" aria-label="Nova página do time">+</button></div><div class="tree" id="treeT"></div></div>
     <div class="sidefoot">
+      <button type="button" class="ni" id="btnEtapas"><span class="ic">🧭</span><span class="tx">Etapas do fluxo</span></button>
       <button type="button" class="ni" id="btnCampos"><span class="ic">⚙</span><span class="tx">Campos personalizados</span></button>
       <button class="btn bk" id="btnBk" type="button" hidden>Supabase</button>
     </div>
@@ -525,18 +541,20 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <section id="vProjetos" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsPst"></div><div class="pgrid" id="pgrid"></div></div></section>
       <section id="vHoje" hidden><div id="hoje" class="hj"></div></section>
       <section id="vLixeira" hidden><div class="lx" id="lixeira"></div></section>
+      <section id="vComando" hidden><div id="comando" class="hj"></div></section>
       <section id="vPainel" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsRespP"></div><div id="painel" style="display:grid;gap:12px"></div></div></section>
       <section id="vPagina" hidden>
         <div class="pg">
-          <div class="pgbar"><div class="crumbs" id="crumbs"></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="pgSalvo"></span><button class="btn sm" type="button" id="pgMover"></button><button class="btn sm" type="button" id="pgVer" hidden>Versões</button><button class="btn sm danger" type="button" id="pgExcluir">Excluir</button></div></div>
+          <div class="pgbar"><div class="crumbs" id="crumbs"></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="pgSalvo"></span><button class="btn sm" type="button" id="pgEstado" aria-haspopup="menu"></button><button class="btn sm" type="button" id="pgMover"></button><button class="btn sm" type="button" id="pgVer" hidden>Versões</button><button class="btn sm danger" type="button" id="pgExcluir">Excluir</button></div></div>
           <div class="trava" id="pgTrava" hidden></div>
+          <div class="aprov" id="pgAprov" hidden></div>
           <div class="pgtop"><button class="pgic" id="pgIcone" type="button" aria-label="Trocar ícone">📄</button><input class="pgt" id="pgTitulo" placeholder="Sem título" autocomplete="off" aria-label="Título da página"></div>
           <div class="pgmeta" id="pgMeta"></div>
           <div class="tb" id="tb" role="toolbar" aria-label="Formatação">
             <button type="button" data-cmd="h1" title="Título 1">T1</button><button type="button" data-cmd="h2" title="Título 2">T2</button><button type="button" data-cmd="h3" title="Título 3">T3</button><button type="button" data-cmd="p" title="Texto normal">¶</button><span class="sp"></span>
             <button type="button" data-cmd="bold" title="Negrito (Ctrl+B)"><b>B</b></button><button type="button" data-cmd="italic" title="Itálico (Ctrl+I)"><i>I</i></button><button type="button" data-cmd="underline" title="Sublinhado (Ctrl+U)"><u>U</u></button><button type="button" data-cmd="strikeThrough" title="Riscado"><s>S</s></button><span class="sp"></span>
             <button type="button" data-cmd="ul" title="Lista">• Lista</button><button type="button" data-cmd="ol" title="Lista numerada">1. Lista</button><button type="button" data-cmd="todo" title="Checklist">☑ Checklist</button><span class="sp"></span>
-            <button type="button" data-cmd="quote" title="Citação">❝</button><button type="button" data-cmd="callout" title="Destaque">💡</button><button type="button" data-cmd="code" title="Código">{ }</button><button type="button" data-cmd="hr" title="Divisor">—</button><button type="button" data-cmd="table" title="Tabela">⊞ Tabela</button><button type="button" data-cmd="link" title="Link">🔗</button>
+            <button type="button" data-cmd="quote" title="Citação">❝</button><button type="button" data-cmd="callout" title="Destaque">💡</button><button type="button" data-cmd="code" title="Código">{ }</button><button type="button" data-cmd="hr" title="Divisor">—</button><button type="button" data-cmd="table" title="Tabela">⊞ Tabela</button><button type="button" data-cmd="link" title="Link">🔗</button><span class="sp"></span><button type="button" data-cmd="decisao" title="Registrar uma decisão">⚖️ Decisão</button><button type="button" data-cmd="tarefa" title="Transformar o trecho selecionado em tarefa">➕ Tarefa</button>
           </div>
           <div class="modelos" id="modelos" hidden></div>
           <div class="doc" id="ed" contenteditable="true" data-ph="Escreva aqui… Digite / para ver os blocos (título, lista, checklist, tabela…)" spellcheck="true"></div>
@@ -590,6 +608,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <div class="blk" id="tComB"><span class="bt">Comentários</span>
       <div class="coms" id="tComs"></div>
       <div class="ckrow"><textarea id="tComTx" rows="1" placeholder="Escreva um comentário… (Enter envia)"></textarea><button class="mv" type="button" id="tComAdd">Comentar</button></div></div>
+    <div class="lks" id="tOrigem" hidden></div>
     <div class="hist" id="tHist" hidden></div>
     <div class="actions" id="tActs"><button class="btn danger sp" type="button" id="tDel" hidden>Excluir</button><button class="btn" type="button" id="tVer" hidden>Versões</button><button class="btn" type="button" id="tCancel">Cancelar</button><button class="btn primary" type="submit" id="tSalvar">Salvar</button></div>
     <div class="actions confirm" id="tConf" hidden><span class="sp" id="tConfTx">Excluir esta tarefa de vez?</span><button class="btn" type="button" id="tConfN">Não</button><button class="btn danger solid" type="button" id="tConfS">Sim, excluir</button></div>
@@ -618,6 +637,15 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
   </form>
 </dialog>
 
+<dialog id="dlgE">
+  <form class="f" id="frmE" method="dialog">
+    <h3>Etapas do fluxo</h3>
+    <p class="sub" style="margin:0">Colunas do seu processo no kanban (escolha “Colunas: etapas do fluxo”). Cada etapa conta como uma situação — A fazer, Fazendo, Aguardando ou Feito — para prazos, Painel e Central de Comando continuarem certos.</p>
+    <div id="eLista" style="display:grid;gap:6px"></div>
+    <div class="modelos"><button class="btn sm" type="button" id="eAdd">+ Etapa</button><span>ou começar com:</span><button class="btn sm" type="button" data-emod="pd">Desenvolvimento de produto</button><button class="btn sm" type="button" data-emod="ped">Pedido e entrega</button></div>
+    <div class="actions"><button class="btn sp" type="button" id="eLimpar">Voltar ao padrão</button><button class="btn" type="button" id="eCancel">Cancelar</button><button class="btn primary" type="submit">Salvar</button></div>
+  </form>
+</dialog>
 <dialog id="dlgC">
   <form class="f" id="frmC" method="dialog">
     <h3>Campos personalizados</h3>
@@ -626,6 +654,13 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <div class="row" style="align-items:end"><label>Novo campo<input id="cNome" autocomplete="off" placeholder="Ex.: Cliente, Etiquetas, Valor"></label><label>Tipo<select id="cTipo"><option value="selecao">Seleção (uma opção)</option><option value="multi">Etiquetas (várias opções)</option><option value="texto">Texto</option><option value="numero">Número</option><option value="moeda">Valor em R$</option><option value="data">Data</option><option value="caixa">Caixa de marcar</option><option value="link">Link</option></select></label></div>
     <div><button class="btn" type="button" id="cAdd">+ Adicionar campo</button></div>
     <div class="actions"><button class="btn" type="button" id="cCancel">Cancelar</button><button class="btn primary" type="submit">Salvar campos</button></div>
+  </form>
+</dialog>
+<dialog id="dlgBusca" aria-label="Buscar em tudo">
+  <form class="f" method="dialog" style="gap:8px">
+    <input type="search" id="gbQ" placeholder="Buscar tarefas, projetos, páginas, comentários e pessoas…" autocomplete="off" aria-label="Buscar">
+    <div id="gbRes" class="gbres" role="listbox"></div>
+    <div class="actions"><span class="sub sp" style="margin:0;font-size:12px">↑↓ para escolher · Enter abre · só aparece o que você tem acesso</span><button class="btn" type="button" id="gbFechar">Fechar</button></div>
   </form>
 </dialog>
 <dialog id="dlgV">
@@ -676,7 +711,7 @@ let db=null,userNs=null,meuId=null,souDono=false,podeEscrever=true,modoLocal=fal
 let compart=[],pessoais=[],projetos=[],pagT=[],pagP=[],campos=[],nomesU={},pessoasOrg=[];
 let colT=null,colP=null,colEu=null,colPg=null,colCfg=null,hist=null;
 let vista=lsGet("tarefas-vista","hoje"),projAberto=null,pgAtual=null,fProj="",fResp="",fRapido="",fPrio="",fCampo="",busca="",verArq=false,editT=null,editP=null;
-if(!["minhas","time","projetos","painel","hoje"].includes(vista))vista="hoje";
+if(!["minhas","time","projetos","painel","hoje","comando"].includes(vista))vista="hoje";
 let modo=lsGet("tarefas-modo","kanban"),agrupar=lsGet("tarefas-agrupar","status"),sortL=lsGet("tarefas-sort",{k:"prazo",d:1}),gpFechados=new Set(lsGet("tarefas-gpfechados",[])),abertos=new Set(lsGet("tarefas-arvore",[]));
 if(!["kanban","lista","grupo","cal","linha"].includes(modo))modo="kanban";
 
@@ -684,6 +719,11 @@ if(!["kanban","lista","grupo","cal","linha"].includes(modo))modo="kanban";
 const todas=()=>[...pessoais,...compart];
 const projDe=id=>projetos.find(p=>p.id===id)||null;
 const campoDe=id=>campos.find(c=>c.id===id)||null;
+/* etapas do fluxo: colunas próprias (ex.: Briefing, Formulação, Amostra…), cada uma ligada a uma situação base,
+   para os números, prazos e o Painel continuarem funcionando. A tarefa guarda "etapa"; a situação segue a da etapa. */
+let etapas=[];
+const etapaDe=id=>etapas.find(e=>e.id===id)||null;
+const etapaDaTarefa=t=>{const e=etapaDe(t.etapa),st=t.status||"afazer";return e&&e.cat===st?e:etapas.find(x=>x.cat===st)||null};
 const ehMinha=t=>t._priv||(meuId&&t.respId===meuId);
 function nomeResp(t){if(t.respId)return t.respId===meuId?"Você":(nomesU[t.respId]||"Alguém do time");return t.respNome||""}
 const iniciais=n=>(n||"?").split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()||"?";
@@ -762,7 +802,7 @@ const moverTarefa=(t,st)=>t.status===st?null:alterarTarefa(t,{status:st},st==="f
 async function ir(v,extra){
   await flushPagina();
   vista=v;projAberto=extra?.proj||null;pgAtual=extra?.pg||null;fRapido="";fResp="";
-  if(["minhas","time","projetos","painel","hoje"].includes(v))lsSet("tarefas-vista",v);
+  if(["minhas","time","projetos","painel","hoje","comando"].includes(v))lsSet("tarefas-vista",v);
   if(v==="lixeira")carregarLixeira();
   $("#app").classList.remove("aberta");render();window.scrollTo({top:0});
 }
@@ -775,6 +815,7 @@ const pagsDe=esp=>esp==="p"?pagP:pagT;
 function renderSide(){
   const ab=t=>!t.arquivado&&t.status!=="feito";
   {const h=hoje(),n=todas().filter(t=>ehMinha(t)&&ab(t)&&((t.prazo&&t.prazo<=h)||t.foco===h)).length;$("#nHoje").textContent=n||"";$("#nHoje").style.color=todas().some(t=>ehMinha(t)&&ab(t)&&t.prazo&&t.prazo<h)?"var(--danger)":""}
+  {const h=hoje(),n=todas().filter(t=>ab(t)&&!t.arquivado&&((t.prazo&&t.prazo<h)||bloqueios(t).length)).length+minhasAprovacoes().length;$("#nCmd").textContent=n||"";$("#nCmd").style.color=n?"var(--danger)":""}
   $("#nMinhas").textContent=todas().filter(t=>ehMinha(t)&&ab(t)).length||"";
   $("#nTime").textContent=compart.filter(ab).length||"";
   $("#nProj").textContent=projetos.filter(p=>(p.status||"ativo")==="ativo").length||"";
@@ -801,11 +842,11 @@ $("#addPessoal").addEventListener("click",()=>criarPagina("p",null));
 $("#addTime").addEventListener("click",()=>criarPagina("t",null));
 
 /* ---------- render geral ---------- */
-const TITULOS={hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
+const TITULOS={comando:["Central de Comando","Tudo o que está travado ou pedindo ação, no time inteiro. Clique num número para ver a lista e numa linha para abrir."],hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
 function render(){
   renderSide();
   const quadro=vista==="minhas"||vista==="time"||vista==="projeto",pag=vista==="pagina";
-  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vLixeira").hidden=vista!=="lixeira";$("#vPagina").hidden=!pag;
+  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vComando").hidden=vista!=="comando";$("#vLixeira").hidden=vista!=="lixeira";$("#vPagina").hidden=!pag;
   $("#tools").hidden=pag||vista==="projetos"&&false;$("#hbtns").hidden=pag;
   if(!pag){const t=vista==="projeto"?[projDe(projAberto)?.nome||"Projeto","Tarefas, entregas e prazos deste projeto."]:TITULOS[vista];$("#titulo").textContent=t[0];$("#subt").textContent=t[1]}
   renderFiltros(quadro);
@@ -815,6 +856,7 @@ function render(){
   if(pag){renderPagina();return}
   if(vista==="projetos"){renderProjetos();return}
   if(vista==="painel"){renderPainel();return}
+  if(vista==="comando"){renderComando();return}
   if(vista==="hoje"){renderHoje();return}
   if(vista==="lixeira"){renderLixeira();return}
   renderPHead();renderChipsResp($("#chipsResp"),filtradas(true));
@@ -830,7 +872,7 @@ function render(){
 const modoEf=()=>vista==="projeto"&&modo==="grupo"?"kanban":modo;
 function renderFiltros(quadro){
   const painel=vista==="painel",projs=vista==="projetos";
-  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="lixeira";
+  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="lixeira"||vista==="comando";
   const mv=$("#modoVis");mv.hidden=!quadro;mv.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b.dataset.m===modoEf());b.hidden=b.dataset.m==="grupo"&&vista==="projeto"});
   $("#busca").placeholder=projs?"Buscar projeto…":"Buscar tarefa…";
   $("#fProj").hidden=!(quadro||painel)||vista==="projeto";$("#fPrioSel").hidden=!(quadro||painel);$("#fPrioSel").value=fPrio;
@@ -841,8 +883,8 @@ function renderFiltros(quadro){
   if(fCampo&&!sel.some(c=>fCampo.startsWith(c.id+":")&&(c.opcoes||[]).some(o=>fCampo===c.id+":"+o.id)))fCampo="";
   const hc=`<option value="">Todas as etiquetas</option>${sel.map(c=>`<optgroup label="${esc(c.nome)}">${(c.opcoes||[]).map(o=>`<option value="${esc(c.id+":"+o.id)}">${esc(o.nome)}</option>`).join("")}</optgroup>`).join("")}`;
   if(sc.dataset.k!==hc){sc.innerHTML=hc;sc.dataset.k=hc}sc.value=fCampo;sc.hidden=!sel.length||!(quadro||painel);
-  const ag=$("#agrupar"),ha=`<option value="status">Colunas: situação</option><option value="prio">Colunas: prioridade</option><option value="resp">Colunas: responsável</option>${campos.filter(c=>c.tipo==="selecao").map(c=>`<option value="c:${esc(c.id)}">Colunas: ${esc(c.nome)}</option>`).join("")}`;
-  if(ag.dataset.k!==ha){ag.innerHTML=ha;ag.dataset.k=ha}if(agrupar.startsWith("c:")&&!campoDe(agrupar.slice(2)))agrupar="status";ag.value=agrupar;ag.hidden=!quadro||modoEf()!=="kanban";
+  const ag=$("#agrupar"),ha=`<option value="status">Colunas: situação</option>${etapas.length?`<option value="etapa">Colunas: etapas do fluxo</option>`:""}<option value="prio">Colunas: prioridade</option><option value="resp">Colunas: responsável</option>${campos.filter(c=>c.tipo==="selecao").map(c=>`<option value="c:${esc(c.id)}">Colunas: ${esc(c.nome)}</option>`).join("")}`;
+  if(ag.dataset.k!==ha){ag.innerHTML=ha;ag.dataset.k=ha}if((agrupar.startsWith("c:")&&!campoDe(agrupar.slice(2)))||(agrupar==="etapa"&&!etapas.length))agrupar="status";ag.value=agrupar;ag.hidden=!quadro||modoEf()!=="kanban";
 }
 $("#modoVis").addEventListener("click",e=>{const b=e.target.closest("[data-m]");if(!b)return;modo=b.dataset.m;lsSet("tarefas-modo",modo);render()});
 $("#fPrioSel").addEventListener("change",e=>{fPrio=e.target.value;render()});
@@ -911,6 +953,7 @@ function extrasHtml(t){const o=[],subs=todas().filter(x=>x.paiId===t.id&&!x.arqu
 
 /* ---------- kanban com agrupamento ---------- */
 function grupoAtual(vis){
+  if(agrupar==="etapa"&&etapas.length)return {etapa:true,cols:etapas.map(e=>({id:e.id,nome:e.nome,c:`var(${COLS.find(c=>c.id===e.cat).c})`})),get:t=>etapaDaTarefa(t)?.id||"",patch:v=>{const e=etapaDe(v);return e?{etapa:e.id,status:e.cat}:null}};
   if(agrupar==="prio")return {cols:[["alta","Prioridade alta","--danger"],["media","Prioridade média","--warn"],["baixa","Prioridade baixa","--c-afazer"]].map(([id,nome,c])=>({id,nome,c:`var(${c})`})),get:t=>t.prioridade||"media",patch:v=>({prioridade:v})};
   if(agrupar==="resp"){const m=new Map();vis.forEach(t=>{const k=chaveResp(t);if(!m.has(k))m.set(k,nomeChaveResp(t))});if(!m.has("sem"))m.set("sem","Sem responsável");
     const cols=[...m.entries()].sort((a,b)=>(a[0]==="sem")-(b[0]==="sem")||a[1].localeCompare(b[1],"pt-BR")).map(([id,nome])=>({id,nome,c:"var(--accent)"}));
@@ -947,7 +990,7 @@ function cartao(t,g,ci){
   const tags=campos.map(c=>htmlCampo(t,c,true)).filter(Boolean).join(" ");
   d.innerHTML=`<div class="t"></div>
     ${tags?`<div class="meta">${tags}</div>`:""}
-    <div class="meta">${p&&vista!=="projeto"?`<span class="pj" style="--pc:var(--${p.cor||"p1"})"><i></i><span class="pjn"></span></span>`:""}${sp?`<span class="due ${sp.c}">${esc(sp.tx)}</span>`:""}${ck.length?`<span class="ck num ${okc===ck.length?"full":""}">☑ ${okc}/${ck.length}</span>`:""}${extrasHtml(t)}${!g.status&&t.status!=="afazer"?`<span class="stp" style="--c:var(${COLS.find(c=>c.id===t.status)?.c})">${COLS.find(c=>c.id===t.status)?.nome}</span>`:""}${t._priv&&vista!=="minhas"?`<span class="lock">🔒 só você</span>`:""}${!t._priv&&vista==="minhas"?`<span class="lock">time</span>`:""}${rn&&!t._priv&&agrupar!=="resp"?`<span style="margin-left:auto;display:inline-flex;gap:5px;align-items:center"><span class="av" title="${esc(rn)}">${esc(iniciais(rn))}</span>${vista==="time"?`<span>${esc(rn)}</span>`:""}</span>`:""}</div>
+    <div class="meta">${p&&vista!=="projeto"?`<span class="pj" style="--pc:var(--${p.cor||"p1"})"><i></i><span class="pjn"></span></span>`:""}${sp?`<span class="due ${sp.c}">${esc(sp.tx)}</span>`:""}${ck.length?`<span class="ck num ${okc===ck.length?"full":""}">☑ ${okc}/${ck.length}</span>`:""}${extrasHtml(t)}${etapas.length&&!g.etapa&&etapaDaTarefa(t)?`<span class="stp" style="--c:var(${COLS.find(c=>c.id===etapaDaTarefa(t).cat).c})">${esc(etapaDaTarefa(t).nome)}</span>`:""}${!g.status&&!g.etapa&&t.status!=="afazer"?`<span class="stp" style="--c:var(${COLS.find(c=>c.id===t.status)?.c})">${COLS.find(c=>c.id===t.status)?.nome}</span>`:""}${t._priv&&vista!=="minhas"?`<span class="lock">🔒 só você</span>`:""}${!t._priv&&vista==="minhas"?`<span class="lock">time</span>`:""}${rn&&!t._priv&&agrupar!=="resp"?`<span style="margin-left:auto;display:inline-flex;gap:5px;align-items:center"><span class="av" title="${esc(rn)}">${esc(iniciais(rn))}</span>${vista==="time"?`<span>${esc(rn)}</span>`:""}</span>`:""}</div>
     ${t.status==="aguardando"&&t.aguardando?`<div class="wait"></div>`:""}
     <div class="moves"></div>`;
   d.querySelector(".t").textContent=t.titulo||"(sem título)";
@@ -1042,7 +1085,7 @@ function renderPHead(){const el=$("#pHead");if(vista!=="projeto"){el.hidden=true
   const s=statsProj(p),sp=p.prazo?difDias(p.prazo,hoje()):null;
   el.hidden=false;el.style.setProperty("--pc",`var(--${p.cor||"p1"})`);
   el.innerHTML=`<div class="info"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="mv" type="button" data-ph="voltar">← Projetos</button><span class="pst ${p.status||"ativo"}">${PST[p.status||"ativo"]}</span>${p.acesso==="restrito"?`<span class="papel">🔒 Restrito · ${(p.membros||[]).length} ${plural((p.membros||[]).length,"pessoa","pessoas")}</span>`:""}${p._papel?`<span class="papel">Você: ${NOMES_PAPEL[p._papel]}</span>`:""}${p.inicio?`<span class="lock">Início ${fmtData(p.inicio)}</span>`:""}${p.prazo?`<span class="due ${p.status!=="concluido"&&sp<0?"late":sp===0?"today":""}">Prazo ${fmtData(p.prazo)}${p.status!=="concluido"&&sp<0?" · atrasado":""}</span>`:""}</div>${p.descricao?`<p class="sub pd"></p>`:""}
-    ${barra(s)}<div class="pnums"><span><b>${s.feito}</b>/${s.tot} tarefas concluídas</span><span><b>${s.fazendo}</b> fazendo</span><span><b>${s.aguardando}</b> aguardando</span><span><b>${s.afazer}</b> a fazer</span>${s.late?`<span class="late"><b>${s.late}</b> ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${s.en?`<span><b>${s.enOk}</b>/${s.en} entregas</span>`:""}</div>
+    ${barra(s)}<div class="pnums">${s.tot+s.en?`<span title="Fórmula: (tarefas concluídas + entregas concluídas) ÷ (todas as tarefas + todas as entregas) = (${s.feito} + ${s.enOk}) ÷ (${s.tot} + ${s.en})">Progresso <b>${Math.round((s.feito+s.enOk)/(s.tot+s.en)*100)}%</b> <small>= (${s.feito}+${s.enOk}) ÷ (${s.tot}+${s.en})</small></span>`:""}<span><b>${s.feito}</b>/${s.tot} tarefas concluídas</span><span><b>${s.fazendo}</b> fazendo</span><span><b>${s.aguardando}</b> aguardando</span><span><b>${s.afazer}</b> a fazer</span>${s.late?`<span class="late"><b>${s.late}</b> ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${s.en?`<span><b>${s.enOk}</b>/${s.en} entregas</span>`:""}</div>
     ${s.en?`<div class="ents">${(p.entregas||[]).map((x,i)=>`<label class="ent ${x.ok?"ok":""}"><input type="checkbox" data-ent="${i}" ${x.ok?"checked":""} ${podeEditarProj(p)?"":"disabled"}><span></span></label>`).join("")}</div>`:""}</div>
     ${podeEscrever?`<div class="acts"><button class="btn" type="button" data-ph="editar">${podeEditarProj(p)?"Editar projeto":"Ver projeto"}</button></div>`:""}`;
   const pd=el.querySelector(".pd");if(pd)pd.textContent=p.descricao;
@@ -1150,6 +1193,68 @@ $("#painel").addEventListener("click",e=>{const r=e.target.closest("tr[data-id]"
   document.addEventListener("pointermove",e=>{const el=e.target.closest&&e.target.closest("[data-tip]");if(!el){if(alvo){tip.classList.remove("on");alvo=null}return}alvo=el;mostra(el,e.clientX,e.clientY)});
   document.addEventListener("scroll",()=>{tip.classList.remove("on");alvo=null},true)})();
 
+
+/* ---------- central de comando: o que pede ação no time inteiro ---------- */
+let cmdSel=lsGet("tarefas-cmd","late");
+function sinaisComando(){
+  const h=hoje(),em3=addUteis(h,3),ab=todas().filter(t=>t.status!=="feito"&&!t.arquivado);
+  const desde=(t,st)=>{const hs=(t.historico||[]).filter(x=>x.para===st).pop();return (hs?.em||t.atualizadoEm||t.criadoEm||"").slice(0,10)};
+  const ultimaAtiv=p=>todas().filter(t=>t.projetoId===p.id).map(t=>(t.atualizadoEm||t.criadoEm||"").slice(0,10)).concat([(p.atualizadoEm||p.criadoEm||"").slice(0,10)]).filter(Boolean).sort().pop()||"";
+  const ativos=projetos.filter(p=>(p.status||"ativo")==="ativo");
+  const t=(id,ic,nome,regra,l)=>({id,ic,nome,regra,tipo:"t",l:ordenar(l)});
+  return [
+    t("late","🔴","Atrasadas","prazo já passou e não está feita",ab.filter(x=>x.prazo&&x.prazo<h)),
+    t("logo","🟠","Vencem em até 3 dias úteis","prazo entre hoje e "+fmtData(em3),ab.filter(x=>x.prazo&&x.prazo>=h&&x.prazo<=em3)),
+    t("bloq","⛔","Bloqueadas","dependem de outra tarefa que ainda não terminou",ab.filter(x=>bloqueios(x).length)),
+    t("semresp","👤","Sem responsável","tarefa do time sem ninguém definido",ab.filter(x=>!x._priv&&!x.respId&&!x.respNome)),
+    t("aguard","⏳","Aguardando há mais de 7 dias","em “Aguardando” há mais de uma semana",ab.filter(x=>x.status==="aguardando"&&desde(x,"aguardando")&&difDias(h,desde(x,"aguardando"))>7)),
+    t("parada","🧊","Em andamento sem mexer há 7 dias","em “Fazendo” e sem alteração há mais de uma semana",ab.filter(x=>x.status==="fazendo"&&(x.atualizadoEm||"").slice(0,10)&&difDias(h,(x.atualizadoEm||"").slice(0,10))>7)),
+    {id:"pjatras",ic:"📁",nome:"Projetos atrasados ou em risco",regra:"prazo passou, tem tarefa atrasada ou falta 1 semana com menos de 70% pronto",tipo:"p",l:ativos.filter(p=>{const sa=saudeProj(p,statsProj(p))[0];return sa==="atras"||sa==="risco"})},
+    {id:"aprov",ic:"✍️",nome:"Aprovações esperando por você",regra:"documentos em revisão em que pediram a sua aprovação",tipo:"g",l:minhasAprovacoes()},
+    {id:"decis",ic:"⚖️",nome:"Decisões registradas",regra:"blocos “Decisão” das páginas que você vê",tipo:"d",l:[["t",pagT],["p",pagP]].flatMap(([esp,ps])=>ps.flatMap(g=>{const d=document.createElement("div");d.innerHTML=g.conteudo||"";return [...d.querySelectorAll(".decisao")].map(x=>({g,esp,tx:(x.textContent||"").replace(/\s+/g," ").trim()}))}))},
+    {id:"pjparado",ic:"💤",nome:"Projetos parados",regra:"ativos e sem nenhuma alteração há 14 dias",tipo:"p",l:ativos.filter(p=>{const u=ultimaAtiv(p);return u&&difDias(h,u)>14})},
+  ]}
+function renderComando(){
+  const sin=sinaisComando();if(!sin.some(x=>x.id===cmdSel))cmdSel="late";const atual=sin.find(x=>x.id===cmdSel);
+  const card=x=>`<button type="button" class="kpi ${x.l.length&&["late","bloq","pjatras","aprov"].includes(x.id)?"bad":""}" data-cmd="${x.id}" aria-pressed="${x.id===cmdSel}" style="text-align:left;cursor:pointer;font:inherit;color:inherit${x.id===cmdSel?";box-shadow:inset 0 -3px 0 var(--accent)":""}"><span class="kl">${x.ic} ${x.nome}</span><span class="kv">${x.l.length}</span></button>`;
+  const linhaP=p=>{const s=statsProj(p),sa=saudeProj(p,s);return `<div class="hr" data-pj="${esc(p.id)}"><span class="pj" style="--pc:var(--${p.cor||"p1"})"><i></i></span><div style="min-width:0"><div class="tt" tabindex="0">${esc(p.nome||"Projeto")}</div><div class="meta"><span>${s.feito}/${s.tot} tarefas concluídas</span>${s.late?`<span style="color:var(--danger)">${s.late} ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${p.prazo?`<span>Prazo ${fmtData(p.prazo)}</span>`:""}</div></div><div class="rs"><span class="saude ${sa[0]}">${sa[1]}</span></div></div>`};
+  const linhaG=({g,esp,tx})=>`<div class="hr" data-pg="${esc(g.id)}" data-esp="${esp}"><span aria-hidden="true">${esc(g.icone||"📄")}</span><div style="min-width:0"><div class="tt" tabindex="0">${esc(tx||g.titulo||"Sem título")}</div><div class="meta">${tx?`<span>📄 ${esc(g.titulo||"Sem título")}</span>`:`<span>Pedido por ${esc(nomeDe((g.aprovacoes||[]).find(a=>a.por===meuId)?.pedidoPor))}</span>`}${g.atualizadoEm?`<span>${fmtDT(g.atualizadoEm)}</span>`:""}</div></div><div class="rs"></div></div>`;
+  $("#comando").innerHTML=`<div class="kgrid">${sin.map(card).join("")}</div>
+    <section class="hjsec"><h3>${atual.ic} ${atual.nome} <span class="num">${atual.l.length}</span><span class="hint">Regra: ${esc(atual.regra)}</span></h3>${atual.l.length?atual.l.map(atual.tipo==="p"?linhaP:atual.tipo==="t"?linhaHoje:linhaG).join(""):`<div class="hjvazio">Nada aqui. 🎉</div>`}</section>`}
+$("#comando").addEventListener("click",e=>{const b=e.target.closest("[data-cmd]");if(b){cmdSel=b.dataset.cmd;lsSet("tarefas-cmd",cmdSel);renderComando();return}
+  const pj=e.target.closest("[data-pj]");if(pj){ir("projeto",{proj:pj.dataset.pj});return}
+  const pg=e.target.closest("[data-pg]");if(pg){ir("pagina",{pg:{id:pg.dataset.pg,esp:pg.dataset.esp}});return}
+  const r=e.target.closest(".hr[data-id]");if(!r)return;const t=todas().find(x=>x.id===r.dataset.id);if(!t)return;
+  if(e.target.closest("[data-hjfoco]")){const on=t.foco!==hoje();alterarTarefa(t,{foco:on?hoje():null},on?"★ No foco de hoje":"Tirado do foco");return}
+  if(e.target.closest(".tt"))abrirTarefa(t)});
+$("#comando").addEventListener("change",e=>{const c=e.target.closest("[data-hjck]");if(!c)return;const t=todas().find(x=>x.id===c.closest(".hr").dataset.id);if(t)moverTarefa(t,c.checked?"feito":"afazer")});
+
+/* ---------- busca global: tudo o que esta pessoa pode ver (o banco já filtrou pelas permissões) ---------- */
+let gbItens=[],gbSel=0;
+const textoDe=html=>{const d=document.createElement("div");d.innerHTML=html||"";return d.textContent||""};
+function trecho(txt,q){const t=(txt||"").replace(/\s+/g," ").trim(),i=chave(t).indexOf(q);if(i<0)return esc(t.slice(0,90));
+  const a=Math.max(0,i-30),b=Math.min(t.length,i+q.length+60);return (a?"…":"")+esc(t.slice(a,i))+"<mark>"+esc(t.slice(i,i+q.length))+"</mark>"+esc(t.slice(i+q.length,b))+(b<t.length?"…":"")}
+function buscarTudo(qq){const q=chave(qq);if(q.length<2)return[];const out=[],tem=s=>chave(s).includes(q);
+  todas().forEach(t=>{let onde=null;
+    if(tem(t.titulo))onde=["",t.titulo];else if(tem(t.descricao))onde=["Detalhes",t.descricao];
+    else{const c=(t.comentarios||[]).find(c=>tem(c.texto));if(c)onde=["Comentário",c.texto];else{const k=(t.checklist||[]).find(k=>tem(k.t));if(k)onde=["Checklist",k.t];else{const l=(t.links||[]).find(l=>tem(l.nome)||tem(l.url));if(l)onde=["Link",l.nome||l.url]}}}
+    if(onde)out.push({g:"Tarefas",ic:t.status==="feito"?"✅":"☐",tit:t.titulo||"(sem título)",sub:(projDe(t.projetoId)?.nome?projDe(t.projetoId).nome+" · ":"")+(onde[0]?onde[0]+": ":"")+"",tx:onde[0]?onde[1]:"",abrir:()=>abrirTarefa(t),peso:onde[0]?1:0})});
+  projetos.forEach(p=>{if(tem(p.nome)||tem(p.descricao))out.push({g:"Projetos",ic:"🗂️",tit:p.nome,sub:"",tx:tem(p.nome)?"":p.descricao,abrir:()=>ir("projeto",{proj:p.id}),peso:tem(p.nome)?0:1})});
+  [["t",pagT],["p",pagP]].forEach(([esp,ps])=>ps.forEach(g=>{const c=textoDe(g.conteudo);if(tem(g.titulo)||tem(c))out.push({g:"Páginas",ic:g.icone||"📄",tit:g.titulo||"Sem título",sub:esp==="p"?"🔒 Pessoal · ":"",tx:tem(g.titulo)?"":c,abrir:()=>ir("pagina",{pg:{id:g.id,esp}}),peso:tem(g.titulo)?0:1})}));
+  pessoasOrg.forEach(u=>{if(u.id&&tem(u.name)){const n=compart.filter(t=>t.respId===u.id&&t.status!=="feito").length;out.push({g:"Pessoas",ic:"👤",tit:u.name,sub:`${n} ${plural(n,"tarefa aberta","tarefas abertas")} · `,tx:"",abrir:()=>{fResp=u.id;ir("time").then(()=>{fResp=u.id;render()})},peso:0})}});
+  const ordem=["Tarefas","Projetos","Páginas","Pessoas"];
+  return out.sort((a,b)=>ordem.indexOf(a.g)-ordem.indexOf(b.g)||a.peso-b.peso).filter((x,i,arr)=>arr.slice(0,i).filter(y=>y.g===x.g).length<12)}
+function renderBusca(){const q=$("#gbQ").value;gbItens=buscarTudo(q);gbSel=Math.min(gbSel,Math.max(0,gbItens.length-1));const qk=chave(q);let g="";
+  $("#gbRes").innerHTML=q.trim().length<2?`<div class="hjvazio">Digite pelo menos 2 letras.</div>`:!gbItens.length?`<div class="hjvazio">Nada encontrado para “${esc(q)}”.</div>`:
+    gbItens.map((x,i)=>(x.g!==g?`<h4>${(g=x.g)}</h4>`:"")+`<button type="button" class="gbi ${i===gbSel?"on":""}" role="option" aria-selected="${i===gbSel}" data-gb="${i}"><span aria-hidden="true">${esc(x.ic)}</span><b>${trecho(x.tit,qk)}</b>${x.sub||x.tx?`<small>${esc(x.sub)}${x.tx?trecho(x.tx,qk):""}</small>`:""}</button>`).join("")}
+function abrirBusca(){$("#gbQ").value="";gbSel=0;renderBusca();$("#app").classList.remove("aberta");$("#dlgBusca").showModal();setTimeout(()=>$("#gbQ").focus(),20)}
+function escolherBusca(i){const x=gbItens[i];if(!x)return;$("#dlgBusca").close();x.abrir()}
+$("#navBusca").addEventListener("click",abrirBusca);
+$("#gbFechar").addEventListener("click",()=>$("#dlgBusca").close());
+$("#gbQ").addEventListener("input",()=>{gbSel=0;renderBusca()});
+$("#gbQ").addEventListener("keydown",e=>{if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(!gbItens.length)return;gbSel=(gbSel+(e.key==="ArrowDown"?1:-1)+gbItens.length)%gbItens.length;renderBusca();$("#gbRes .gbi.on")?.scrollIntoView({block:"nearest"})}else if(e.key==="Enter"){e.preventDefault();escolherBusca(gbSel)}});
+$("#gbRes").addEventListener("click",e=>{const b=e.target.closest("[data-gb]");if(b)escolherBusca(+b.dataset.gb)});
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"&&!document.querySelector("dialog[open]:not(#dlgBusca)")){e.preventDefault();if($("#dlgBusca").open)$("#gbQ").focus();else abrirBusca()}});
 
 /* ---------- hoje / foco do dia ---------- */
 function linhaHoje(t){const p=projDe(t.projetoId),sp=situPrazo(t),c=COLS.find(c=>c.id===(t.status||"afazer")),foco=t.foco===hoje();
@@ -1326,6 +1431,7 @@ function abrirTarefa(t,padrao){
   const h=(d.historico||[]).slice().reverse(),hb=$("#tHist");hb.hidden=n||!(h.length||d.criadoEm);
   hb.innerHTML=`<b>Histórico</b><ol>${h.map(x=>`<li>${fmtDT(x.em)} · ${esc(COLS.find(c=>c.id===x.de)?.nome||"")} → ${esc(COLS.find(c=>c.id===x.para)?.nome||"")}${x.por&&x.por!==meuId&&nomesU[x.por]?` <small>por ${esc(nomesU[x.por])}</small>`:""}</li>`).join("")}${d.criadoEm?`<li>${fmtDT(d.criadoEm)} · criada${d.criadoPor&&d.criadoPor!==meuId&&nomesU[d.criadoPor]?" por "+esc(nomesU[d.criadoPor]):""}</li>`:""}</ol>`;
   const podeT=podeEscrever&&(n||podeEditarTarefaEm(t.projetoId));
+  {const o=t?.origemPagina,pg=o&&pagsDe(o.esp).find(x=>x.id===o.id);$("#tOrigem").hidden=!pg;$("#tOrigem").innerHTML=pg?`<span class="dep"><a href="#" data-orig="1">📄 Veio da página “${esc(pg.titulo||"Sem título")}”</a></span>`:""}
   $("#tDel").hidden=n||!podeT;$("#tConf").hidden=true;$("#tActs").hidden=false;$("#tVer").hidden=n||!hist;
   $("#tConfTx").textContent=hist?"Excluir esta tarefa? Ela fica na Lixeira e pode voltar.":"Excluir esta tarefa de vez?";
   [...$("#frmT").elements].forEach(el=>{if(el.id!=="tCancel"&&!(el.id==="tVisEu"&&semEu))el.disabled=!podeT});$("#tSalvar").hidden=!podeT;
@@ -1474,6 +1580,26 @@ async function salvarCampos(lista){
   if(!colCfg){toast("Carregando… tente de novo em alguns segundos");return false}
   try{await colCfg.doc("campos").set({lista,atualizadoEm:new Date().toISOString(),por:meuId||null});campos=lista;render();return true}catch(e){erroGravar(e,"os campos");return false}}
 $("#btnCampos").addEventListener("click",abrirCampos);
+let eDraft=[];
+const MOD_ETAPAS={pd:[["Briefing","afazer"],["Formulação","fazendo"],["Amostra","fazendo"],["Aprovação do cliente","aguardando"],["Regulatório","aguardando"],["Produção","fazendo"],["Entregue","feito"]],
+  ped:[["Pedido recebido","afazer"],["Separação","fazendo"],["Nota fiscal","fazendo"],["Aguardando transportadora","aguardando"],["Enviado","feito"]]};
+function abrirEtapas(){if(!podeEscrever)return;eDraft=JSON.parse(JSON.stringify(etapas));renderEDraft();$("#dlgE").showModal()}
+function renderEDraft(){$("#eLista").innerHTML=eDraft.length?eDraft.map((e,i)=>`<div class="ckrow"><input type="text" data-en="${i}" value="${esc(e.nome)}" aria-label="Nome da etapa" maxlength="40"><select data-ec="${i}" style="width:auto" aria-label="Conta como">${COLS.map(c=>`<option value="${c.id}" ${c.id===e.cat?"selected":""}>${c.nome}</option>`).join("")}</select><button class="mv" type="button" data-eup="${i}" aria-label="Subir" ${i?"":"disabled"}>↑</button><button class="xbtn" type="button" data-ex="${i}" aria-label="Remover etapa">×</button></div>`).join(""):`<div class="hjvazio">Sem etapas próprias: o kanban usa A fazer, Fazendo, Aguardando e Feito.</div>`}
+$("#btnEtapas").addEventListener("click",abrirEtapas);
+$("#eCancel").addEventListener("click",()=>$("#dlgE").close());
+$("#eAdd").addEventListener("click",()=>{eDraft.push({id:novoId(),nome:"",cat:"fazendo"});renderEDraft();$("#eLista input[data-en]:last-of-type")?.focus()});
+$("#eLimpar").addEventListener("click",()=>{eDraft=[];renderEDraft()});
+document.querySelectorAll("[data-emod]").forEach(b=>b.addEventListener("click",()=>{eDraft=MOD_ETAPAS[b.dataset.emod].map(([nome,cat])=>({id:novoId(),nome,cat}));renderEDraft()}));
+$("#eLista").addEventListener("input",e=>{const i=e.target.dataset.en;if(i!=null)eDraft[+i].nome=e.target.value});
+$("#eLista").addEventListener("change",e=>{const i=e.target.dataset.ec;if(i!=null)eDraft[+i].cat=e.target.value});
+$("#eLista").addEventListener("click",e=>{const u=e.target.closest("[data-eup]"),x=e.target.closest("[data-ex]");
+  if(u){const i=+u.dataset.eup;[eDraft[i-1],eDraft[i]]=[eDraft[i],eDraft[i-1]];renderEDraft()}
+  if(x){eDraft.splice(+x.dataset.ex,1);renderEDraft()}});
+$("#frmE").addEventListener("submit",async e=>{e.preventDefault();const lista=eDraft.map(x=>({id:x.id,nome:x.nome.trim(),cat:x.cat})).filter(x=>x.nome);
+  if(lista.length&&COLS.some(c=>!lista.some(x=>x.cat===c.id))){toast("Tenha pelo menos uma etapa para cada situação: A fazer, Fazendo, Aguardando e Feito.",4000);return}
+  if(modoLocal){etapas=lista;render();$("#dlgE").close();return}
+  if(!colCfg){toast("Carregando… tente de novo em alguns segundos");return}
+  try{await gravar(colCfg,"etapas",{lista,atualizadoEm:new Date().toISOString(),por:meuId||null},"as etapas");etapas=lista;if(lista.length){agrupar="etapa";lsSet("tarefas-agrupar",agrupar)}$("#dlgE").close();render();toast(lista.length?"Etapas salvas. O kanban agora mostra o seu fluxo.":"Voltou para as colunas padrão.")}catch(err){erroGravar(err,"as etapas")}});
 
 /* ---------- confirmação na página ---------- */
 function confirmar(msg,sim){return new Promise(res=>{let d=$("#cfDlg");if(!d){d=document.createElement("dialog");d.id="cfDlg";d.innerHTML='<form class="f" method="dialog"><h3>Confirmar</h3><p class="cfm" style="margin:0;white-space:pre-line"></p><div class="actions"><button class="btn" type="button" data-r="0">Cancelar</button><button class="btn primary" type="button" data-r="1"></button></div></form>';document.body.appendChild(d)}
@@ -1493,12 +1619,12 @@ function sanitizar(html){const t=document.createElement("template");t.innerHTML=
     if(REMOVE_TAGS.has(tag)){c.remove();return}
     if(!OK_TAGS.has(tag)){walk(c);c.replaceWith(...c.childNodes);return}
     [...c.attributes].forEach(a=>{const nm=a.name.toLowerCase();let ok=false;
-      if(tag==="A"&&nm==="href"&&/^(https?:|mailto:)/i.test(a.value.trim()))ok=true;
-      if(nm==="class"&&((tag==="UL"&&/\btodo\b/.test(a.value))||(tag==="DIV"&&/\bcallout\b/.test(a.value)))){c.setAttribute("class",tag==="UL"?"todo":"callout");ok=true}
+      if(tag==="A"&&nm==="href"&&(/^(https?:|mailto:)/i.test(a.value.trim())||/^#tarefa-[\w-]{1,60}$/.test(a.value.trim())))ok=true;
+      if(nm==="class"&&((tag==="UL"&&/\btodo\b/.test(a.value))||(tag==="DIV"&&/\b(callout|decisao)\b/.test(a.value)))){c.setAttribute("class",tag==="UL"?"todo":/\bdecisao\b/.test(a.value)?"decisao":"callout");ok=true}
       if(nm==="data-ok"&&tag==="LI")ok=true;
       if(nm==="colspan"||nm==="rowspan")ok=/^\d{1,2}$/.test(a.value);
       if(!ok)c.removeAttribute(a.name)});
-    if(tag==="A"){c.setAttribute("target","_blank");c.setAttribute("rel","noopener noreferrer")}
+    if(tag==="A"&&!/^#tarefa-/.test(c.getAttribute("href")||"")){c.setAttribute("target","_blank");c.setAttribute("rel","noopener noreferrer")}
     walk(c)})};
   walk(t.content);const d=document.createElement("div");d.appendChild(t.content.cloneNode(true));return d.innerHTML}
 const ed=$("#ed");try{document.execCommand("defaultParagraphSeparator",false,"p")}catch(e){}
@@ -1518,7 +1644,7 @@ async function criarPagina(esp,parentId,modelo){
   if(!modoLocal&&esp==="t"&&!colPg){toast("Carregando… tente de novo em alguns segundos");return}
   const p={id:novoId(),titulo:"",icone:"📄",parentId:parentId||null,conteudo:"",ordem:Date.now(),criadoPor:meuId||null};
   if(await salvarPag(p,esp)){if(parentId){abertos.add(parentId);lsSet("tarefas-arvore",[...abertos])}await ir("pagina",{pg:{id:p.id,esp}});setTimeout(()=>$("#pgTitulo").focus(),60)}}
-function editavel(){return podeEscrever&&!pgTrava}
+function editavel(){return podeEscrever&&!pgTrava&&!["aprovado","obsoleto"].includes(estadoPg(pagDe(pgAtual)))}
 function marcaVazio(){ed.classList.toggle("vazio",!ed.textContent.trim()&&!ed.querySelector("hr,table,li"))}
 function renderPagina(){
   const p=pagDe(pgAtual);$("#titulo").hidden=true;$("#subt").hidden=true;
@@ -1534,6 +1660,7 @@ function renderPagina(){
   $("#pgTrava").hidden=!pgTrava;if(pgTrava)$("#pgTrava").innerHTML=`🔒 <span></span> <button class="mv" type="button" id="pgRetravar">Tentar de novo</button>`,$("#pgTrava span").textContent=`${pgTravaQuem||"Outra pessoa"} está editando esta página agora. Você pode ler, mas não alterar.`;
   const autor=p.editadoPor&&p.editadoPor!==meuId?(nomesU[p.editadoPor]||"alguém do time"):"você";
   $("#pgMeta").textContent=p.atualizadoEm?`Editada por ${autor} em ${fmtDT(p.atualizadoEm)}`:"";
+  renderDocEstado(p);
   $("#pgMover").hidden=!podeEscrever||(!colEu&&!modoLocal);$("#pgMover").textContent=pgAtual.esp==="p"?"Mover para o Time":"Mover para Pessoal";$("#pgExcluir").hidden=!podeEscrever||pgTrava;$("#pgVer").hidden=!hist;
   $("#modelos").hidden=!pode||!!ed.textContent.trim()||!!ed.querySelector("hr,table,li");
   if(!$("#modelos").hidden)$("#modelos").innerHTML=`<span>Começar com um modelo:</span>${Object.entries(MODELOS).map(([k,m])=>`<button class="btn sm" type="button" data-mod="${k}">${m.ic} ${m.nome}</button>`).join("")}`;
@@ -1587,6 +1714,13 @@ function aplicar(c){
     case "hr":document.execCommand("insertHTML",false,"<hr><p><br></p>");break;
     case "table":document.execCommand("insertHTML",false,'<table><thead><tr><th>Coluna 1</th><th>Coluna 2</th><th>Coluna 3</th></tr></thead><tbody><tr><td><br></td><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td><td><br></td></tr></tbody></table><p><br></p>');break;
     case "link":abrirLink();return;
+    case "decisao":{/* insertHTML dentro de um parágrafo com texto descarta o bloco; por isso entra como nó depois do bloco atual */
+      let b=blocoAtual();while(b&&b!==ed&&b.parentNode!==ed)b=b.parentNode;
+      const d=document.createElement("div");d.className="decisao";d.innerHTML=`⚖️ <b>Decisão:</b> escreva aqui o que foi decidido — ${esc(nomesU[meuId]||"")} em ${fmtData(hoje())}`;
+      const p=document.createElement("p");p.innerHTML="<br>";
+      if(b&&b!==ed&&(b.textContent.trim()||b.querySelector("img,table,hr")))b.after(d,p);else if(b&&b!==ed)b.replaceWith(d,p);else ed.append(d,p);
+      caretEm(d);break}
+    case "tarefa":tarefaDoTrecho();return;
   }
   ed.querySelectorAll("p>ul,p>ol,p>table,div>ul,div>ol").forEach(l=>{const pai=l.parentElement;if(pai!==ed&&!pai.classList.contains("callout")&&[...pai.childNodes].every(n=>n===l||(n.nodeType===3&&!n.textContent.trim())||n.nodeName==="BR"))pai.replaceWith(l)});
   pgMarcar();
@@ -1594,7 +1728,7 @@ function aplicar(c){
 $("#tb").addEventListener("mousedown",e=>{if(e.target.closest("button"))e.preventDefault()});
 $("#tb").addEventListener("click",e=>{const b=e.target.closest("[data-cmd]");if(b)aplicar(b.dataset.cmd)});
 /* menu "/" */
-const BLOCOS=[["h1","Título 1","T1"],["h2","Título 2","T2"],["h3","Título 3","T3"],["p","Texto","¶"],["ul","Lista","•"],["ol","Lista numerada","1."],["todo","Checklist","☑"],["quote","Citação","❝"],["callout","Destaque","💡"],["code","Código","{}"],["table","Tabela","⊞"],["hr","Divisor","—"]];
+const BLOCOS=[["h1","Título 1","T1"],["h2","Título 2","T2"],["h3","Título 3","T3"],["p","Texto","¶"],["ul","Lista","•"],["ol","Lista numerada","1."],["todo","Checklist","☑"],["quote","Citação","❝"],["callout","Destaque","💡"],["code","Código","{}"],["table","Tabela","⊞"],["decisao","Decisão","⚖️"],["hr","Divisor","—"]];
 let slash=null;
 function fecharSlash(){slash?.el.remove();slash=null}
 function abrirSlash(bloco,q){const l=BLOCOS.filter(([,n])=>chave(n).includes(chave(q)));if(!l.length){fecharSlash();return}
@@ -1648,6 +1782,53 @@ const MODELOS={
   lista:{nome:"Lista de verificação",ic:"✅",titulo:()=>"Checklist — ",html:()=>`<ul class="todo"><li><br></li></ul>`}
 };
 $("#modelos").addEventListener("click",e=>{const b=e.target.closest("[data-mod]");if(!b||!editavel())return;const m=MODELOS[b.dataset.mod];ed.innerHTML=m.html();if(!$("#pgTitulo").value.trim())$("#pgTitulo").value=m.titulo();pgIcone=m.ic;$("#pgIcone").textContent=pgIcone;marcaVazio();$("#modelos").hidden=true;pgMarcar();ed.focus()});
+/* ---------- documentos: estado, aprovações, decisões e tarefas a partir do texto ---------- */
+const ESTADOS_PG={rascunho:["📝","Rascunho"],revisao:["👀","Em revisão"],aprovado:["✅","Aprovado"],obsoleto:["🗄️","Obsoleto"]};
+function estadoPg(p){return p&&ESTADOS_PG[p.estado]?p.estado:"rascunho"}
+const nomeDe=id=>id===meuId?"você":(nomesU[id]||"alguém do time");
+const minhasAprovacoes=()=>[["t",pagT],["p",pagP]].flatMap(([esp,ps])=>ps.filter(g=>estadoPg(g)==="revisao"&&(g.aprovacoes||[]).some(a=>a.por===meuId&&a.status==="pendente")).map(g=>({g,esp})));
+function renderDocEstado(p){const est=estadoPg(p),[ic,nm]=ESTADOS_PG[est],ap=p.aprovacoes||[],box=$("#pgAprov");
+  $("#pgEstado").textContent=`${ic} ${nm} ▾`;$("#pgEstado").hidden=!podeEscrever&&est==="rascunho";
+  const lista=ap.map(a=>`<span class="ap">${a.status==="aprovado"?"✅":a.status==="ajustes"?"✏️":"⏳"} ${esc(nomeDe(a.por))}</span>`).join("");
+  const meu=ap.find(a=>a.por===meuId&&a.status==="pendente");
+  box.className="aprov"+(est==="aprovado"?" ok":est==="obsoleto"?" velho":"");
+  if(est==="revisao"){box.hidden=false;box.innerHTML=`<span>👀 Em revisão. Aprovações:</span>${lista||"<span>nenhuma pedida</span>"}${meu&&podeEscrever?`<span style="margin-left:auto;display:flex;gap:6px"><button class="btn sm primary" type="button" data-ap="sim">Aprovar</button><button class="btn sm" type="button" data-ap="ajustes">Pedir ajustes</button></span>`:""}`}
+  else if(est==="aprovado"){const quem=ap.filter(a=>a.status==="aprovado"),ult=quem.map(a=>a.em||"").sort().pop();box.hidden=false;box.innerHTML=`<span>✅ Aprovado por ${quem.map(a=>esc(nomeDe(a.por))).join(", ")||"—"}${ult?" em "+fmtDT(ult):""}. Para mudar o texto, abra uma nova revisão; esta versão fica guardada em Versões.</span>`}
+  else if(est==="obsoleto"){box.hidden=false;box.innerHTML=`<span>🗄️ Documento obsoleto: fica só para consulta.</span>`}
+  else if(ap.some(a=>a.status==="ajustes")){box.hidden=false;box.innerHTML=`<span>✏️ Pediram ajustes:</span>${lista}`}
+  else box.hidden=true}
+async function gravarEstadoPg(mudar,msg){const ref=pgAtual;await salvarPaginaAtual();const p=pagDe(ref);if(!p)return;
+  const n={...p,...mudar(p)};if(await salvarPag(n,ref.esp)===true){toast(msg,2500);pgCarregado=null;render()}}
+$("#pgEstado").addEventListener("click",e=>{const p=pagDe(pgAtual);if(!p||!podeEscrever)return;const est=estadoPg(p),r=e.currentTarget.getBoundingClientRect();
+  const ops=[];if(est==="rascunho")ops.push(["pedir","👀","Pedir aprovação…"]);if(est==="revisao")ops.push(["rasc","📝","Voltar para rascunho"]);
+  if(est==="aprovado"||est==="obsoleto")ops.push(["nova","📝","Abrir nova revisão"]);if(est!=="obsoleto")ops.push(["obs","🗄️","Marcar como obsoleto"]);
+  menuPop(r,ops.map(([k,ic,t])=>[k,ic,t]),k=>{
+    if(k==="pedir")pedirAprovacao(r);
+    if(k==="rasc")gravarEstadoPg(()=>({estado:"rascunho"}),"Voltou para rascunho");
+    if(k==="nova")gravarEstadoPg(()=>({estado:"rascunho",aprovacoes:[]}),"Nova revisão aberta. A versão anterior fica em Versões.");
+    if(k==="obs")gravarEstadoPg(()=>({estado:"obsoleto"}),"Marcado como obsoleto")})});
+function menuPop(r,ops,cb){document.querySelector(".pop.menu")?.remove();const el=document.createElement("div");el.className="pop menu";el.setAttribute("role","menu");
+  el.innerHTML=ops.map(([k,ic,t])=>`<button type="button" role="menuitem" data-k="${esc(k)}"><i>${ic}</i>${esc(t)}</button>`).join("");document.body.appendChild(el);
+  el.style.top=Math.min(r.bottom+6,innerHeight-60)+"px";el.style.left=Math.max(8,Math.min(r.left,innerWidth-260))+"px";
+  const fora=ev=>{if(!el.contains(ev.target)){el.remove();document.removeEventListener("mousedown",fora,true)}};setTimeout(()=>document.addEventListener("mousedown",fora,true));
+  el.addEventListener("click",ev=>{const b=ev.target.closest("[data-k]");if(!b)return;el.remove();document.removeEventListener("mousedown",fora,true);cb(b.dataset.k)})}
+function pedirAprovacao(r){const ps=pessoasOrg.filter(x=>x.id&&x.id!==meuId);
+  if(!ps.length){toast("Ainda não há outras pessoas do time cadastradas para aprovar.",3500);return}
+  menuPop(r,ps.map(x=>[x.id,"👤",x.name||"Alguém do time"]),id=>gravarEstadoPg(()=>({estado:"revisao",aprovacoes:[{id:novoId(),por:id,status:"pendente",pedidoPor:meuId||null,pedidoEm:new Date().toISOString()}]}),`Aprovação pedida a ${nomeDe(id)}`))}
+$("#pgAprov").addEventListener("click",e=>{const b=e.target.closest("[data-ap]");if(!b)return;const sim=b.dataset.ap==="sim";
+  gravarEstadoPg(p=>{const ap=(p.aprovacoes||[]).map(a=>a.por===meuId&&a.status==="pendente"?{...a,status:sim?"aprovado":"ajustes",em:new Date().toISOString()}:a);
+    const todos=ap.length&&ap.every(a=>a.status==="aprovado");return {aprovacoes:ap,estado:todos?"aprovado":sim?"revisao":"rascunho"}},sim?"Aprovação registrada":"Pedido de ajustes registrado")});
+/* transformar o trecho selecionado em tarefa, com link nos dois sentidos */
+async function tarefaDoTrecho(){const ref=pgAtual,p=pagDe(ref),sel=getSelection(),txt=(sel?.toString()||"").replace(/\s+/g," ").trim();
+  if(!p||!txt||!sel.rangeCount||!ed.contains(sel.anchorNode)){toast("Selecione no texto o trecho que vira tarefa.",3000);return}
+  const range=sel.getRangeAt(0).cloneRange(),id=novoId(),priv=ref.esp==="p";
+  const t={id,_priv:priv,titulo:txt.slice(0,200),descricao:`Criada a partir da página “${p.titulo||"Sem título"}”.`,status:"afazer",prioridade:"media",prazo:null,inicio:null,projetoId:null,respId:null,respNome:null,checklist:[],historico:[],campos:{},criadoPor:meuId||null,ordem:Date.now(),arquivado:false,origemPagina:{id:p.id,esp:ref.esp}};
+  if(!await salvarTarefa(t))return;
+  ed.focus();sel.removeAllRanges();sel.addRange(range);document.execCommand("createLink",false,"#tarefa-"+id);pgMarcar();
+  toast(priv?"Tarefa criada (só você vê) e ligada ao trecho":"Tarefa criada para o time e ligada ao trecho",3000)}
+ed.addEventListener("click",e=>{const a=e.target.closest('a[href^="#tarefa-"]');if(!a)return;e.preventDefault();const t=todas().find(x=>x.id===a.getAttribute("href").slice(8));if(t)abrirTarefa(t);else toast("Essa tarefa foi excluída ou você não tem acesso a ela.",3000)});
+$("#tOrigem").addEventListener("click",e=>{const b=e.target.closest("[data-orig]");if(!b||!editT?.origemPagina)return;$("#dlgT").close();ir("pagina",{pg:editT.origemPagina})});
+
 /* mover e excluir */
 $("#pgExcluir").addEventListener("click",async()=>{const ref=pgAtual,p=pagDe(ref);if(!p)return;const ds=descendentes(pagsDe(ref.esp),p.id);
   if(!await confirmar(`Excluir “${p.titulo||"Sem título"}”${ds.length?` e ${ds.length} ${plural(ds.length,"página dentro dela","páginas dentro dela")}`:""}?${hist?"\n\nElas ficam na Lixeira e podem voltar.":ref.esp==="t"&&souDono?"\n\nA cópia no Supabase continua guardada no histórico.":""}`,"Excluir"))return;
@@ -1956,7 +2137,7 @@ render();
   colT.onSnapshot(s=>{sbSnap("tarefas",s);compart=s.docs.map(d=>({...d.data(),id:d.id,_priv:false}));render();atualizarNomes()},e=>aviso("A conexão com os dados caiu. Recarregue a página."));
   colP.onSnapshot(s=>{sbSnap("projetos",s);projetos=s.docs.map(d=>({...d.data(),id:d.id}));render()},()=>{});
   colPg.onSnapshot(s=>{sbSnap("paginas",s);pagT=s.docs.map(d=>({...d.data(),id:d.id}));render();atualizarNomes()},()=>{});
-  colCfg.onSnapshot(s=>{sbSnap("config",s);const d=s.docs.find(x=>x.id==="campos");campos=(d&&d.data().lista)||[];render()},()=>{});
+  colCfg.onSnapshot(s=>{sbSnap("config",s);const d=s.docs.find(x=>x.id==="campos");campos=(d&&d.data().lista)||[];const de=s.docs.find(x=>x.id==="etapas");etapas=((de&&de.data().lista)||[]).filter(e=>e&&e.id&&COLS.some(c=>c.id===e.cat));render()},()=>{});
   if(colEu)colEu.onSnapshot(s=>{sbSnap("pessoal",s);const tp=d=>(d.data()||{}).tipo;pessoais=s.docs.filter(d=>tp(d)==="tarefa").map(d=>({...d.data(),id:d.id,_priv:true}));pagP=s.docs.filter(d=>tp(d)==="pagina").map(d=>({...d.data(),id:d.id}));render()},()=>{});
   else{sbVistas.add("pessoal");sbProntas.add("pessoal");aviso("Não foi possível identificar sua conta: os itens “Só eu” ficam indisponíveis nesta tela. O que é do time funciona normalmente.")}
   carregarPessoas();
