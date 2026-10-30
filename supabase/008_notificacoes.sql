@@ -133,6 +133,9 @@ begin
     end loop;
   end if;
   return new;
+exception when others then
+  raise warning 'central_notificar: % (%)', sqlerrm, sqlstate;
+  return new; -- um aviso que falha nunca impede a gravação
 end $$;
 revoke all on function central_priv.notificar() from public, anon, authenticated;
 create trigger central_notificar after insert on public.central_docs_historico
