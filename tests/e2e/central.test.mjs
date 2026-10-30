@@ -194,3 +194,41 @@ test("Edição simultânea: salvar por cima da mudança de outra pessoa pergunta
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Permissões: dono restringe o projeto e quem é só leitura não altera as tarefas", async () => {
+  const { page, ctx, erros } = await abrir();
+  await page.click("#btnNovoProj");
+  await page.fill("#pNome", "Fórmula sigilosa");
+  await page.click("#frmP button[type=submit]");
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.colecao === "projetos"));
+  const pid = Object.values((await estado(page)).docs).find((d) => d.colecao === "projetos").doc_id;
+  await page.click('#navAt [data-go="projetos"]');
+  await page.locator(".pcard", { hasText: "Fórmula sigilosa" }).click();
+
+  // dono abre o projeto e restringe o acesso
+  await page.locator("#pHead [data-ph=editar]").click();
+  await page.locator("#pAcs").waitFor();
+  await page.selectOption("#pAcesso", "restrito");
+  assert.match(await page.locator("#pMembros").innerText(), /\(você\)/);
+  assert.equal(await page.locator(`#pMembros select[data-m]`).first().inputValue(), "dono");
+  await page.click("#frmP button[type=submit]");
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.colecao === "projetos" && d.dados.acesso === "restrito"));
+  await page.locator("#pHead", { hasText: "Restrito" }).waitFor();
+  await criarRapida(page, "Teste de estabilidade");
+
+  // agora a pessoa é só leitora: vê, mas não salva nem arrasta
+  await page.evaluate((id) => window.__fakeOutraPessoa("projetos", id, { _papel: "leitor" }), pid);
+  await page.locator("#pHead", { hasText: "Só leitura" }).waitFor();
+  await page.locator("#board .card", { hasText: "Teste de estabilidade" }).click();
+  assert.equal(await page.locator("#tSalvar").isHidden(), true);
+  assert.equal(await page.locator("#tDel").isHidden(), true);
+  await page.click("#tCancel");
+  await page.locator("#board .card", { hasText: "Teste de estabilidade" }).dragTo(page.locator('#board section.col[data-col="fazendo"]'));
+  await page.locator(".toast.on", { hasText: "só pode ver" }).waitFor();
+  assert.equal(tarefa(await estado(page), "Teste de estabilidade").dados.status, "afazer");
+  await page.locator("#pHead [data-ph=editar]", { hasText: "Ver projeto" }).click();
+  assert.equal(await page.locator("#pDel").isHidden(), true);
+  assert.equal(await page.locator("#pAcesso").isDisabled(), true);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

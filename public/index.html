@@ -243,6 +243,11 @@ input,textarea,select{font:inherit;color:var(--fg);background:var(--surface);bor
 .ent input{width:auto;margin:0}
 .ent.ok span{text-decoration:line-through;color:var(--muted)}
 .saude{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap}
+.acs{display:grid;gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px}
+.acs .mrow{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--fg)}
+.acs .mrow span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acs .mrow select{width:auto;padding:4px 6px;font-size:12.5px}
+.papel{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
 .saude.ok{background:var(--ok-bg);color:var(--ok)}.saude.risco{background:var(--warn-bg);color:var(--warn)}.saude.atras{background:var(--danger-bg);color:var(--danger)}.saude.fim{background:var(--sunk);color:var(--muted)}
 /* painel */
 .kgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
@@ -603,6 +608,8 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <label>Situação<select id="pSt"><option value="ativo">Ativo</option><option value="pausado">Pausado</option><option value="concluido">Concluído</option></select></label>
     <label id="lModP">Começar de um modelo<select id="pMod"></select><span id="pModInfo" style="font-weight:400"></span></label>
     <div style="display:grid;gap:6px"><span style="font-size:12px;color:var(--muted);font-weight:500">Cor</span><div class="swatches" id="pCores"></div></div>
+    <div class="acs" id="pAcs" hidden><label>Quem tem acesso<select id="pAcesso"><option value="time">Todo o time (todos editam)</option><option value="restrito">Só as pessoas escolhidas</option></select></label>
+      <div id="pMembros" style="display:grid;gap:4px"></div><span class="sub" id="pAcsInfo" style="margin:0;font-size:12px"></span></div>
     <div style="display:grid;gap:6px"><span style="font-size:12px;color:var(--muted);font-weight:500">Checklist do projeto (entregas e marcos)</span>
       <div class="cklist" id="pCk"></div>
       <div class="ckrow"><input type="text" id="pCkNovo" placeholder="Ex.: Aprovar fórmula, registrar na ANVISA… e tecle Enter" autocomplete="off"><button class="mv" type="button" id="pCkAdd">+ Item</button></div></div>
@@ -690,13 +697,21 @@ function erroGravar(e,oque){if(e&&e.code==="invalid_argument"){podeEscrever=fals
   else if(e&&e.code==="quota_exceeded")toast("Limite de registros atingido. Exclua itens antigos para continuar.",4000);else toast(`Não foi possível salvar ${oque}. Tente de novo.`)}
 /* edição simultânea: cada item vem com "_versao"; se outra pessoa salvou no meio-tempo, o banco recusa e aqui a pessoa escolhe */
 async function gravar(ref,id,d,oque){
-  const fim=r=>{if(r&&r._versao!=null)d._versao=r._versao;return true};
+  const fim=r=>{if(r){if(r._versao!=null)d._versao=r._versao;if(r._papel)d._papel=r._papel;if(r.membros)d.membros=r.membros}return true};
   try{return fim(await ref.doc(id).set(d))}
   catch(e){if(e?.code!=="conflito")throw e;
     const quem=e.por&&e.por!==meuId?(nomesU[e.por]||"Outra pessoa do time"):"";
     const msg=`${quem?quem+" salvou":"Este item foi salvo em outro lugar (outra aba, aparelho ou a versão do Claude)"} ${quem?oque+" ":""}enquanto você editava.\n\nSalvar a sua versão por cima? A versão anterior continua guardada em Versões.\nCancelar mantém o que já está salvo.`;
     if(!await confirmar(msg,"Salvar a minha")){toast("Mantida a versão que já estava salva.",3000);return "descartado"}
     d._versao=e.versao;return fim(await ref.doc(id).set(d))}}
+/* permissões por projeto: o item do projeto traz "_papel" (dono, editor ou leitor) de quem está vendo;
+   sem a migração 006 ele não vem e todo mundo pode tudo, como antes. O banco confere de novo em toda gravação. */
+const papelProj=p=>p?._papel||"dono";
+const temPermissoes=()=>projetos.some(p=>p._papel);
+const podeEditarProj=p=>podeEscrever&&papelProj(p)!=="leitor";
+const podeEditarTarefaEm=pid=>!pid||!projDe(pid)||podeEditarProj(projDe(pid));
+const podeExcluirProj=p=>{const r=papelProj(p);return podeEscrever&&(r==="dono"||(r==="editor"&&!(p?.membros||[]).some(m=>m.papel==="dono")))};
+const NOMES_PAPEL={dono:"Dono",editor:"Editor",leitor:"Só leitura"};
 function descartouEdicao(){["#dlgT","#dlgP"].forEach(s=>{if($(s).open)$(s).close()});render()}
 /* repetição: ao concluir uma tarefa que se repete, cria a próxima */
 const REP={diaria:"Todo dia",uteis:"Dias úteis",semanal:"Toda semana",quinzenal:"A cada 2 semanas",mensal:"Todo mês"};
@@ -720,6 +735,8 @@ async function salvarTarefa0(t,antes){
   const d=limpa(t);d.atualizadoEm=new Date().toISOString();if(!d.criadoEm)d.criadoEm=d.atualizadoEm;d.tipo="tarefa";
   if(d.status==="feito"&&!d.concluidoEm)d.concluidoEm=d.atualizadoEm;if(d.status!=="feito")d.concluidoEm=null;
   const mudouLugar=antes&&antes.id&&antes._priv!==t._priv;
+  const naLista=todas().find(x=>x.id===t.id);
+  if(!podeEditarTarefaEm(t.projetoId)||(naLista&&!podeEditarTarefaEm(naLista.projetoId))){toast("Você só pode ver as tarefas deste projeto. Peça para o dono te dar acesso de editor.",3500);return false}
   const aplica=()=>{pessoais=pessoais.filter(x=>x.id!==t.id);compart=compart.filter(x=>x.id!==t.id);(t._priv?pessoais:compart).push({...d,id:t.id,_priv:!!t._priv})};
   if(modoLocal){aplica();gravarLocal();render();return true}
   try{if(await gravar(t._priv?colEu:colT,t.id,d,"esta tarefa")==="descartado"){descartouEdicao();return false}if(mudouLugar){try{await (antes._priv?colEu:colT).doc(antes.id).delete()}catch(e){}}aplica();render();return true}
@@ -1024,10 +1041,10 @@ $("#grupos").addEventListener("keydown",e=>{if(e.key!=="Enter")return;const r=e.
 function renderPHead(){const el=$("#pHead");if(vista!=="projeto"){el.hidden=true;return}const p=projDe(projAberto);if(!p){vista="projetos";render();return}
   const s=statsProj(p),sp=p.prazo?difDias(p.prazo,hoje()):null;
   el.hidden=false;el.style.setProperty("--pc",`var(--${p.cor||"p1"})`);
-  el.innerHTML=`<div class="info"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="mv" type="button" data-ph="voltar">← Projetos</button><span class="pst ${p.status||"ativo"}">${PST[p.status||"ativo"]}</span>${p.inicio?`<span class="lock">Início ${fmtData(p.inicio)}</span>`:""}${p.prazo?`<span class="due ${p.status!=="concluido"&&sp<0?"late":sp===0?"today":""}">Prazo ${fmtData(p.prazo)}${p.status!=="concluido"&&sp<0?" · atrasado":""}</span>`:""}</div>${p.descricao?`<p class="sub pd"></p>`:""}
+  el.innerHTML=`<div class="info"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="mv" type="button" data-ph="voltar">← Projetos</button><span class="pst ${p.status||"ativo"}">${PST[p.status||"ativo"]}</span>${p.acesso==="restrito"?`<span class="papel">🔒 Restrito · ${(p.membros||[]).length} ${plural((p.membros||[]).length,"pessoa","pessoas")}</span>`:""}${p._papel?`<span class="papel">Você: ${NOMES_PAPEL[p._papel]}</span>`:""}${p.inicio?`<span class="lock">Início ${fmtData(p.inicio)}</span>`:""}${p.prazo?`<span class="due ${p.status!=="concluido"&&sp<0?"late":sp===0?"today":""}">Prazo ${fmtData(p.prazo)}${p.status!=="concluido"&&sp<0?" · atrasado":""}</span>`:""}</div>${p.descricao?`<p class="sub pd"></p>`:""}
     ${barra(s)}<div class="pnums"><span><b>${s.feito}</b>/${s.tot} tarefas concluídas</span><span><b>${s.fazendo}</b> fazendo</span><span><b>${s.aguardando}</b> aguardando</span><span><b>${s.afazer}</b> a fazer</span>${s.late?`<span class="late"><b>${s.late}</b> ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${s.en?`<span><b>${s.enOk}</b>/${s.en} entregas</span>`:""}</div>
-    ${s.en?`<div class="ents">${(p.entregas||[]).map((x,i)=>`<label class="ent ${x.ok?"ok":""}"><input type="checkbox" data-ent="${i}" ${x.ok?"checked":""} ${podeEscrever?"":"disabled"}><span></span></label>`).join("")}</div>`:""}</div>
-    ${podeEscrever?`<div class="acts"><button class="btn" type="button" data-ph="editar">Editar projeto</button></div>`:""}`;
+    ${s.en?`<div class="ents">${(p.entregas||[]).map((x,i)=>`<label class="ent ${x.ok?"ok":""}"><input type="checkbox" data-ent="${i}" ${x.ok?"checked":""} ${podeEditarProj(p)?"":"disabled"}><span></span></label>`).join("")}</div>`:""}</div>
+    ${podeEscrever?`<div class="acts"><button class="btn" type="button" data-ph="editar">${podeEditarProj(p)?"Editar projeto":"Ver projeto"}</button></div>`:""}`;
   const pd=el.querySelector(".pd");if(pd)pd.textContent=p.descricao;
   el.querySelectorAll("[data-ent]").forEach(cb=>{cb.nextElementSibling.textContent=(p.entregas||[])[+cb.dataset.ent]?.t||""})}
 $("#pHead").addEventListener("click",e=>{const b=e.target.closest("[data-ph]");if(!b)return;if(b.dataset.ph==="voltar")ir("projetos");else abrirProjeto(projDe(projAberto))});
@@ -1041,7 +1058,7 @@ function renderProjetos(){
   const g=$("#pgrid");g.innerHTML="";
   if(!l.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1">${projetos.length?"Nenhum projeto neste filtro.":"Nenhum projeto ainda. Clique em “+ Projeto” para criar o primeiro e agrupar as tarefas dele."}</div>`;return}
   l.forEach(p=>{const s=statsProj(p),sa=saudeProj(p,s);const b=document.createElement("button");b.type="button";b.className="pcard";b.style.setProperty("--pc",`var(--${p.cor||"p1"})`);
-    b.innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h3></h3><span class="saude ${sa[0]}">${sa[1]}</span></div>${p.descricao?"<p></p>":""}
+    b.innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h3></h3><span style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${p.acesso==="restrito"?`<span class="papel" title="Só as pessoas escolhidas veem">🔒 Restrito</span>`:""}${papelProj(p)==="leitor"?`<span class="papel">Só leitura</span>`:""}<span class="saude ${sa[0]}">${sa[1]}</span></span></div>${p.descricao?"<p></p>":""}
       ${barra(s)}<div class="pnums"><span><b>${s.feito}</b>/${s.tot} concluídas</span>${s.fazendo?`<span><b>${s.fazendo}</b> fazendo</span>`:""}${s.aguardando?`<span><b>${s.aguardando}</b> aguardando</span>`:""}${s.late?`<span class="late"><b>${s.late}</b> ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${s.en?`<span><b>${s.enOk}</b>/${s.en} entregas</span>`:""}${p.prazo?`<span>Prazo <b>${fmtData(p.prazo)}</b></span>`:""}</div>`;
     b.querySelector("h3").textContent=p.nome;const pp=b.querySelector("p");if(pp)pp.textContent=p.descricao;
     b.addEventListener("click",()=>ir("projeto",{proj:p.id}));g.appendChild(b)});
@@ -1267,7 +1284,7 @@ $("#linha").addEventListener("click",e=>{const b=e.target.closest("[data-tl]");i
 
 /* ---------- diálogo de tarefa ---------- */
 let ckTmp=[];
-function opcoesProj(sel,val){sel.innerHTML=`<option value="">Sem projeto</option>`+projetos.filter(p=>(p.status||"ativo")!=="concluido"||p.id===val).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","pt-BR")).map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join("")+(podeEscrever?`<option value="__novo">+ Criar projeto…</option>`:"");sel.value=val||""}
+function opcoesProj(sel,val){sel.innerHTML=`<option value="">Sem projeto</option>`+projetos.filter(p=>((p.status||"ativo")!=="concluido"&&podeEditarProj(p))||p.id===val).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"","pt-BR")).map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join("")+(podeEscrever?`<option value="__novo">+ Criar projeto…</option>`:"");sel.value=val||""}
 function opcoesResp(t){const s=$("#tResp"),nomes=new Set(),ids=new Map();
   if(meuId)ids.set(meuId,"Eu");pessoasOrg.forEach(p=>{if(p.id&&p.id!==meuId)ids.set(p.id,p.name||"Alguém do time")});compart.forEach(x=>{if(x.respId&&!ids.has(x.respId))ids.set(x.respId,nomesU[x.respId]||"Alguém do time");if(x.respNome)nomes.add(x.respNome.trim())});
   s.innerHTML=`<option value="">Ninguém ainda</option>${[...ids.entries()].map(([id,n])=>`<option value="u:${esc(id)}">${esc(n)}</option>`).join("")}${[...nomes].sort().map(n=>`<option value="n:${esc(n)}">${esc(n)}</option>`).join("")}<option value="__outro">+ Outra pessoa (digitar nome)…</option>`;
@@ -1308,9 +1325,10 @@ function abrirTarefa(t,padrao){
   ["#tSubNovo","#tLinkNome","#tLinkUrl","#tComTx"].forEach(s=>$(s).value="");$("#tPai").dataset.v="0";renderExtrasDlg(d);
   const h=(d.historico||[]).slice().reverse(),hb=$("#tHist");hb.hidden=n||!(h.length||d.criadoEm);
   hb.innerHTML=`<b>Histórico</b><ol>${h.map(x=>`<li>${fmtDT(x.em)} · ${esc(COLS.find(c=>c.id===x.de)?.nome||"")} → ${esc(COLS.find(c=>c.id===x.para)?.nome||"")}${x.por&&x.por!==meuId&&nomesU[x.por]?` <small>por ${esc(nomesU[x.por])}</small>`:""}</li>`).join("")}${d.criadoEm?`<li>${fmtDT(d.criadoEm)} · criada${d.criadoPor&&d.criadoPor!==meuId&&nomesU[d.criadoPor]?" por "+esc(nomesU[d.criadoPor]):""}</li>`:""}</ol>`;
-  $("#tDel").hidden=n||!podeEscrever;$("#tConf").hidden=true;$("#tActs").hidden=false;$("#tVer").hidden=n||!hist;
+  const podeT=podeEscrever&&(n||podeEditarTarefaEm(t.projetoId));
+  $("#tDel").hidden=n||!podeT;$("#tConf").hidden=true;$("#tActs").hidden=false;$("#tVer").hidden=n||!hist;
   $("#tConfTx").textContent=hist?"Excluir esta tarefa? Ela fica na Lixeira e pode voltar.":"Excluir esta tarefa de vez?";
-  [...$("#frmT").elements].forEach(el=>{if(el.id!=="tCancel"&&!(el.id==="tVisEu"&&semEu))el.disabled=!podeEscrever});
+  [...$("#frmT").elements].forEach(el=>{if(el.id!=="tCancel"&&!(el.id==="tVisEu"&&semEu))el.disabled=!podeT});$("#tSalvar").hidden=!podeT;
   $("#dlgT").showModal();setTimeout(()=>{if(n)$("#tTitulo").focus()},30);
 }
 /* repetição, dependências, subtarefas, links e comentários no diálogo */
@@ -1391,25 +1409,41 @@ function abrirProjeto(p,cb){editP=p||null;aoCriarProj=cb||null;
   $("#pCores").innerHTML=CORES.map(c=>`<label style="--pc:var(--${c})" title="Cor"><input type="radio" name="pCor" value="${c}" ${c===cor?"checked":""} aria-label="Cor ${c.slice(1)}"></label>`).join("");
   ckP=JSON.parse(JSON.stringify(p?.entregas||[]));renderCkEm($("#pCk"),ckP);$("#pCkNovo").value="";
   $("#lModP").hidden=!!p;$("#pMod").innerHTML=`<option value="">Projeto em branco</option>${Object.entries(MODPROJ).map(([k,m])=>`<option value="${k}">${esc(m.nome)} (${m.t.length} tarefas)</option>`).join("")}`;$("#pMod").value="";$("#pModInfo").textContent="";
-  $("#pDel").hidden=!p||!podeEscrever;$("#pConf").hidden=true;$("#pActs").hidden=false;$("#pVer").hidden=!p||!hist;
+  $("#pDel").hidden=!p||!podeExcluirProj(p);$("#pConf").hidden=true;$("#pActs").hidden=false;$("#pVer").hidden=!p||!hist;
+  acsTmp={acesso:p?.acesso||"time",membros:JSON.parse(JSON.stringify(p?.membros||(meuId?[{id:meuId,papel:"dono"}]:[])))};
+  const podeP=!p||podeEditarProj(p);[...$("#frmP").elements].forEach(el=>{if(el.id!=="pCancel"&&el.id!=="pVer")el.disabled=!podeP});$("#frmP button[type=submit]").hidden=!podeP;
+  renderAcesso(p);if(!podeP)$("#pAcsInfo").textContent="Você tem acesso só de leitura a este projeto.";
   $("#dlgP").showModal();setTimeout(()=>$("#pNome").focus(),30)}
 $("#pCancel").addEventListener("click",()=>$("#dlgP").close());
+let acsTmp={acesso:"time",membros:[]};
+function renderAcesso(p){const box=$("#pAcs");box.hidden=!(temPermissoes()||p?._papel);if(box.hidden)return;
+  const dono=!p||papelProj(p)==="dono",rest=acsTmp.acesso==="restrito";$("#pAcesso").value=acsTmp.acesso;$("#pAcesso").disabled=!dono;
+  const ids=new Map();pessoasOrg.forEach(x=>{if(x.id)ids.set(x.id,x.name||"Alguém do time")});acsTmp.membros.forEach(m=>{if(!ids.has(m.id))ids.set(m.id,nomesU[m.id]||"Alguém do time")});
+  const papel=id=>acsTmp.membros.find(m=>m.id===id)?.papel||"";
+  const lista=[...ids].sort((a,b)=>(a[0]===meuId?-1:b[0]===meuId?1:a[1].localeCompare(b[1],"pt-BR")));
+  $("#pMembros").innerHTML=rest?lista.map(([id,nm])=>`<div class="mrow"><span>${esc(nm)}${id===meuId?" (você)":""}</span><select data-m="${esc(id)}" ${dono?"":"disabled"} aria-label="Papel de ${esc(nm)}"><option value="">Sem acesso</option>${["leitor","editor","dono"].map(r=>`<option value="${r}" ${papel(id)===r?"selected":""}>${NOMES_PAPEL[r]}</option>`).join("")}</select></div>`).join(""):"";
+  $("#pAcsInfo").textContent=rest?"Quem está como “Sem acesso” não vê o projeto nem as tarefas dele. Só o dono muda esta lista e exclui o projeto.":"Todo o time vê e edita. Só o dono exclui o projeto."+(dono?"":" Só o dono muda quem tem acesso.")}
+$("#pAcesso").addEventListener("change",e=>{acsTmp.acesso=e.target.value;if(acsTmp.acesso==="restrito"&&meuId&&!acsTmp.membros.some(m=>m.id===meuId))acsTmp.membros.push({id:meuId,papel:"dono"});renderAcesso(editP)});
+$("#pMembros").addEventListener("change",e=>{const s=e.target.closest("[data-m]");if(!s)return;acsTmp.membros=acsTmp.membros.filter(m=>m.id!==s.dataset.m);if(s.value)acsTmp.membros.push({id:s.dataset.m,papel:s.value})});
 $("#pMod").addEventListener("change",e=>{const m=MODPROJ[e.target.value];$("#pModInfo").textContent=m?`${m.desc} Cria ${m.t.length} tarefas do time com prazos a partir do início e ${m.entregas.length} entregas.`:"";
   if(m&&!$("#pNome").value.trim()){$("#pNome").value=m.nome+" — ";$("#pNome").focus()}});
 $("#btnNovoProj").addEventListener("click",()=>{if(podeEscrever)abrirProjeto(null)});
 $("#frmP").addEventListener("submit",async e=>{e.preventDefault();const nm=$("#pNome").value.trim();if(!nm){$("#pNome").focus();return}
   if(!modoLocal&&!colP){toast("Carregando… tente de novo em alguns segundos");return}
   const p={...(editP||{id:novoId(),criadoPor:meuId||null}),nome:nm,descricao:$("#pDesc").value.trim(),inicio:$("#pInicio").value||null,prazo:$("#pPrazo").value||null,status:$("#pSt").value,cor:(document.querySelector('input[name="pCor"]:checked')||{}).value||"p1",entregas:ckP.filter(x=>x.t&&x.t.trim()).map(x=>({id:x.id,t:x.t.trim(),ok:!!x.ok}))};
+  if(!$("#pAcs").hidden&&(!editP||papelProj(editP)==="dono")){
+    if(acsTmp.acesso==="restrito"&&!acsTmp.membros.some(x=>x.papel==="dono")){toast("Deixe pelo menos uma pessoa como dono do projeto.",3500);return}
+    p.acesso=acsTmp.acesso;p.membros=acsTmp.membros.map(x=>({id:x.id,papel:x.papel}))}
   const m=!editP?MODPROJ[$("#pMod").value]:null,base=p.inicio||hoje();
   if(m){if(!p.entregas.length)p.entregas=m.entregas.map(t=>({id:novoId(),t,ok:false}));if(!p.inicio)p.inicio=base;if(!p.prazo)p.prazo=addUteis(base,Math.max(...m.t.map(x=>x[1])))}
   if(await salvarProjeto(p)){$("#dlgP").close();
     if(m){let n=0;for(const [tt,dd,pr,ck] of m.t){const t={id:novoId(),_priv:false,titulo:tt,descricao:"",status:"afazer",prioridade:pr,prazo:addUteis(base,dd),inicio:null,projetoId:p.id,respId:null,respNome:null,checklist:(ck||[]).map(x=>({id:novoId(),t:x,ok:false})),historico:[],campos:{},criadoPor:meuId||null,ordem:Date.now()+n,arquivado:false};if(!modoLocal&&!colT)break;if(await salvarTarefa(t))n++}
       toast(`Projeto criado com ${n} tarefas do modelo`,3000);if(!aoCriarProj){ir("projeto",{proj:p.id})}}
     else toast(editP?"Projeto salvo":"Projeto criado");if(aoCriarProj){aoCriarProj(p.id);aoCriarProj=null}}});
-$("#pDel").addEventListener("click",()=>{const n=todas().filter(t=>t.projetoId===editP?.id).length;$("#pConfTx").textContent=n?`Excluir este projeto? ${n===1?"A tarefa dele continua":`As ${n} tarefas dele continuam`} no quadro, sem projeto.`:"Excluir este projeto de vez?";$("#pConf").hidden=false;$("#pActs").hidden=true});
+$("#pDel").addEventListener("click",()=>{const n=todas().filter(t=>t.projetoId===editP?.id).length,rest=editP?.acesso==="restrito";$("#pConfTx").textContent=n?(rest?`Excluir este projeto? Ele é restrito, então ${n===1?"a tarefa dele vai junto":`as ${n} tarefas dele vão junto`} para a Lixeira.`:`Excluir este projeto? ${n===1?"A tarefa dele continua":`As ${n} tarefas dele continuam`} no quadro, sem projeto.`):"Excluir este projeto de vez?";$("#pConf").hidden=false;$("#pActs").hidden=true});
 $("#pConfN").addEventListener("click",()=>{$("#pConf").hidden=true;$("#pActs").hidden=false});
 $("#pConfS").addEventListener("click",async()=>{const p=editP;if(!p)return;
-  for(const t of todas().filter(t=>t.projetoId===p.id))await salvarTarefa({...t,projetoId:null},t);
+  for(const t of todas().filter(t=>t.projetoId===p.id)){if(p.acesso==="restrito")await excluirTarefa(t);else await salvarTarefa({...t,projetoId:null},t)}
   try{if(modoLocal){projetos=projetos.filter(x=>x.id!==p.id);gravarLocal()}else{await colP.doc(p.id).delete();projetos=projetos.filter(x=>x.id!==p.id)}}catch(e){toast("Não foi possível excluir o projeto");return}
   $("#dlgP").close();if(projAberto===p.id){vista="projetos";projAberto=null}render();toast("Projeto excluído")});
 
