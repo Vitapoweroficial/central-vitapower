@@ -290,3 +290,42 @@ test("Etapas do fluxo: kanban com colunas próprias e a situação acompanha a e
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Documentos: trecho vira tarefa ligada, decisão registrada, aprovação trava a versão", async () => {
+  const { page, ctx, erros } = await abrir();
+  await page.click("#addTime");
+  await page.locator("#vPagina:not([hidden])").waitFor();
+  await page.fill("#pgTitulo", "POP Envase");
+  await page.click("#ed");
+  await page.keyboard.type("Calibrar a balança antes do turno");
+  // seleciona o texto e transforma em tarefa
+  await page.evaluate(() => { const r = document.createRange(); r.selectNodeContents(document.querySelector("#ed")); getSelection().removeAllRanges(); getSelection().addRange(r); });
+  await page.click('#tb [data-cmd="tarefa"]');
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.titulo === "Calibrar a balança antes do turno" && d.dados.origemPagina));
+  await page.locator('#ed a[href^="#tarefa-"]').waitFor();
+  // decisão
+  await page.evaluate(() => { const ed = document.querySelector("#ed"); ed.focus(); const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); getSelection().removeAllRanges(); getSelection().addRange(r); });
+  await page.click('#tb [data-cmd="decisao"]');
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.tipo === "pagina" && (d.dados.conteudo || "").includes("decisao")), null, { timeout: 8000 });
+  // o link no texto abre a tarefa, e a tarefa mostra de onde veio
+  await page.locator('#ed a[href^="#tarefa-"]').click();
+  await page.locator("#dlgT[open]").waitFor();
+  assert.match(await page.locator("#tOrigem").innerText(), /POP Envase/);
+  await page.click("#tCancel");
+  // pede aprovação à Bia
+  await page.click("#pgEstado");
+  await page.click('.pop.menu [data-k="pedir"]');
+  await page.click('.pop.menu button:has-text("Bia Qualidade")');
+  await page.locator("#pgAprov", { hasText: "Em revisão" }).waitFor();
+  // Bia aprova (simulado): a página fica só para leitura
+  const pg = Object.values((await estado(page)).docs).find((d) => d.dados.tipo === "pagina");
+  await page.evaluate(({ id, ap }) => window.__fakeOutraPessoa("paginas", id, { estado: "aprovado", aprovacoes: ap.map((a) => ({ ...a, status: "aprovado", em: new Date().toISOString() })) }), { id: pg.doc_id, ap: pg.dados.aprovacoes });
+  await page.locator("#pgAprov", { hasText: "Aprovado por Bia Qualidade" }).waitFor();
+  assert.equal(await page.getAttribute("#ed", "contenteditable"), "false");
+  // Central de Comando lista a decisão
+  await page.click('#navAt [data-go="comando"]');
+  await page.click("#comando [data-cmd=decis]");
+  await page.locator("#comando .hjsec", { hasText: "Decisão" }).waitFor();
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

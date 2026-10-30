@@ -254,6 +254,12 @@ input,textarea,select{font:inherit;color:var(--fg);background:var(--surface);bor
 .gbi b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gbi small{grid-column:2;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gbi mark{background:color-mix(in srgb,var(--warn) 30%,transparent);color:inherit;border-radius:2px}
+.aprov{border-radius:8px;padding:8px 10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--info-bg);color:var(--fg)}
+.aprov.ok{background:var(--ok-bg)}.aprov.velho{background:var(--sunk)}
+.aprov .ap{display:inline-flex;gap:4px;align-items:center;font-size:12px;background:var(--surface);border-radius:999px;padding:1px 8px}
+.doc .decisao{border-left:4px solid var(--p3);background:color-mix(in srgb,var(--p3) 10%,var(--surface));border-radius:6px;padding:8px 12px;margin:.6em 0;font-family:var(--f-body);font-size:15px}
+.doc a[href^="#tarefa-"]{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:3px;text-decoration:none;padding:0 2px}
+.doc a[href^="#tarefa-"]::after{content:" ↗";font-size:.8em}
 .papel{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
 .saude.ok{background:var(--ok-bg);color:var(--ok)}.saude.risco{background:var(--warn-bg);color:var(--warn)}.saude.atras{background:var(--danger-bg);color:var(--danger)}.saude.fim{background:var(--sunk);color:var(--muted)}
 /* painel */
@@ -539,15 +545,16 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <section id="vPainel" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsRespP"></div><div id="painel" style="display:grid;gap:12px"></div></div></section>
       <section id="vPagina" hidden>
         <div class="pg">
-          <div class="pgbar"><div class="crumbs" id="crumbs"></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="pgSalvo"></span><button class="btn sm" type="button" id="pgMover"></button><button class="btn sm" type="button" id="pgVer" hidden>Versões</button><button class="btn sm danger" type="button" id="pgExcluir">Excluir</button></div></div>
+          <div class="pgbar"><div class="crumbs" id="crumbs"></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="pgSalvo"></span><button class="btn sm" type="button" id="pgEstado" aria-haspopup="menu"></button><button class="btn sm" type="button" id="pgMover"></button><button class="btn sm" type="button" id="pgVer" hidden>Versões</button><button class="btn sm danger" type="button" id="pgExcluir">Excluir</button></div></div>
           <div class="trava" id="pgTrava" hidden></div>
+          <div class="aprov" id="pgAprov" hidden></div>
           <div class="pgtop"><button class="pgic" id="pgIcone" type="button" aria-label="Trocar ícone">📄</button><input class="pgt" id="pgTitulo" placeholder="Sem título" autocomplete="off" aria-label="Título da página"></div>
           <div class="pgmeta" id="pgMeta"></div>
           <div class="tb" id="tb" role="toolbar" aria-label="Formatação">
             <button type="button" data-cmd="h1" title="Título 1">T1</button><button type="button" data-cmd="h2" title="Título 2">T2</button><button type="button" data-cmd="h3" title="Título 3">T3</button><button type="button" data-cmd="p" title="Texto normal">¶</button><span class="sp"></span>
             <button type="button" data-cmd="bold" title="Negrito (Ctrl+B)"><b>B</b></button><button type="button" data-cmd="italic" title="Itálico (Ctrl+I)"><i>I</i></button><button type="button" data-cmd="underline" title="Sublinhado (Ctrl+U)"><u>U</u></button><button type="button" data-cmd="strikeThrough" title="Riscado"><s>S</s></button><span class="sp"></span>
             <button type="button" data-cmd="ul" title="Lista">• Lista</button><button type="button" data-cmd="ol" title="Lista numerada">1. Lista</button><button type="button" data-cmd="todo" title="Checklist">☑ Checklist</button><span class="sp"></span>
-            <button type="button" data-cmd="quote" title="Citação">❝</button><button type="button" data-cmd="callout" title="Destaque">💡</button><button type="button" data-cmd="code" title="Código">{ }</button><button type="button" data-cmd="hr" title="Divisor">—</button><button type="button" data-cmd="table" title="Tabela">⊞ Tabela</button><button type="button" data-cmd="link" title="Link">🔗</button>
+            <button type="button" data-cmd="quote" title="Citação">❝</button><button type="button" data-cmd="callout" title="Destaque">💡</button><button type="button" data-cmd="code" title="Código">{ }</button><button type="button" data-cmd="hr" title="Divisor">—</button><button type="button" data-cmd="table" title="Tabela">⊞ Tabela</button><button type="button" data-cmd="link" title="Link">🔗</button><span class="sp"></span><button type="button" data-cmd="decisao" title="Registrar uma decisão">⚖️ Decisão</button><button type="button" data-cmd="tarefa" title="Transformar o trecho selecionado em tarefa">➕ Tarefa</button>
           </div>
           <div class="modelos" id="modelos" hidden></div>
           <div class="doc" id="ed" contenteditable="true" data-ph="Escreva aqui… Digite / para ver os blocos (título, lista, checklist, tabela…)" spellcheck="true"></div>
@@ -601,6 +608,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <div class="blk" id="tComB"><span class="bt">Comentários</span>
       <div class="coms" id="tComs"></div>
       <div class="ckrow"><textarea id="tComTx" rows="1" placeholder="Escreva um comentário… (Enter envia)"></textarea><button class="mv" type="button" id="tComAdd">Comentar</button></div></div>
+    <div class="lks" id="tOrigem" hidden></div>
     <div class="hist" id="tHist" hidden></div>
     <div class="actions" id="tActs"><button class="btn danger sp" type="button" id="tDel" hidden>Excluir</button><button class="btn" type="button" id="tVer" hidden>Versões</button><button class="btn" type="button" id="tCancel">Cancelar</button><button class="btn primary" type="submit" id="tSalvar">Salvar</button></div>
     <div class="actions confirm" id="tConf" hidden><span class="sp" id="tConfTx">Excluir esta tarefa de vez?</span><button class="btn" type="button" id="tConfN">Não</button><button class="btn danger solid" type="button" id="tConfS">Sim, excluir</button></div>
@@ -807,7 +815,7 @@ const pagsDe=esp=>esp==="p"?pagP:pagT;
 function renderSide(){
   const ab=t=>!t.arquivado&&t.status!=="feito";
   {const h=hoje(),n=todas().filter(t=>ehMinha(t)&&ab(t)&&((t.prazo&&t.prazo<=h)||t.foco===h)).length;$("#nHoje").textContent=n||"";$("#nHoje").style.color=todas().some(t=>ehMinha(t)&&ab(t)&&t.prazo&&t.prazo<h)?"var(--danger)":""}
-  {const h=hoje(),n=todas().filter(t=>ab(t)&&!t.arquivado&&((t.prazo&&t.prazo<h)||bloqueios(t).length)).length;$("#nCmd").textContent=n||"";$("#nCmd").style.color=n?"var(--danger)":""}
+  {const h=hoje(),n=todas().filter(t=>ab(t)&&!t.arquivado&&((t.prazo&&t.prazo<h)||bloqueios(t).length)).length+minhasAprovacoes().length;$("#nCmd").textContent=n||"";$("#nCmd").style.color=n?"var(--danger)":""}
   $("#nMinhas").textContent=todas().filter(t=>ehMinha(t)&&ab(t)).length||"";
   $("#nTime").textContent=compart.filter(ab).length||"";
   $("#nProj").textContent=projetos.filter(p=>(p.status||"ativo")==="ativo").length||"";
@@ -1202,16 +1210,20 @@ function sinaisComando(){
     t("aguard","⏳","Aguardando há mais de 7 dias","em “Aguardando” há mais de uma semana",ab.filter(x=>x.status==="aguardando"&&desde(x,"aguardando")&&difDias(h,desde(x,"aguardando"))>7)),
     t("parada","🧊","Em andamento sem mexer há 7 dias","em “Fazendo” e sem alteração há mais de uma semana",ab.filter(x=>x.status==="fazendo"&&(x.atualizadoEm||"").slice(0,10)&&difDias(h,(x.atualizadoEm||"").slice(0,10))>7)),
     {id:"pjatras",ic:"📁",nome:"Projetos atrasados ou em risco",regra:"prazo passou, tem tarefa atrasada ou falta 1 semana com menos de 70% pronto",tipo:"p",l:ativos.filter(p=>{const sa=saudeProj(p,statsProj(p))[0];return sa==="atras"||sa==="risco"})},
+    {id:"aprov",ic:"✍️",nome:"Aprovações esperando por você",regra:"documentos em revisão em que pediram a sua aprovação",tipo:"g",l:minhasAprovacoes()},
+    {id:"decis",ic:"⚖️",nome:"Decisões registradas",regra:"blocos “Decisão” das páginas que você vê",tipo:"d",l:[["t",pagT],["p",pagP]].flatMap(([esp,ps])=>ps.flatMap(g=>{const d=document.createElement("div");d.innerHTML=g.conteudo||"";return [...d.querySelectorAll(".decisao")].map(x=>({g,esp,tx:(x.textContent||"").replace(/\s+/g," ").trim()}))}))},
     {id:"pjparado",ic:"💤",nome:"Projetos parados",regra:"ativos e sem nenhuma alteração há 14 dias",tipo:"p",l:ativos.filter(p=>{const u=ultimaAtiv(p);return u&&difDias(h,u)>14})},
   ]}
 function renderComando(){
   const sin=sinaisComando();if(!sin.some(x=>x.id===cmdSel))cmdSel="late";const atual=sin.find(x=>x.id===cmdSel);
-  const card=x=>`<button type="button" class="kpi ${x.l.length&&["late","bloq","pjatras"].includes(x.id)?"bad":""}" data-cmd="${x.id}" aria-pressed="${x.id===cmdSel}" style="text-align:left;cursor:pointer;font:inherit;color:inherit${x.id===cmdSel?";box-shadow:inset 0 -3px 0 var(--accent)":""}"><span class="kl">${x.ic} ${x.nome}</span><span class="kv">${x.l.length}</span></button>`;
+  const card=x=>`<button type="button" class="kpi ${x.l.length&&["late","bloq","pjatras","aprov"].includes(x.id)?"bad":""}" data-cmd="${x.id}" aria-pressed="${x.id===cmdSel}" style="text-align:left;cursor:pointer;font:inherit;color:inherit${x.id===cmdSel?";box-shadow:inset 0 -3px 0 var(--accent)":""}"><span class="kl">${x.ic} ${x.nome}</span><span class="kv">${x.l.length}</span></button>`;
   const linhaP=p=>{const s=statsProj(p),sa=saudeProj(p,s);return `<div class="hr" data-pj="${esc(p.id)}"><span class="pj" style="--pc:var(--${p.cor||"p1"})"><i></i></span><div style="min-width:0"><div class="tt" tabindex="0">${esc(p.nome||"Projeto")}</div><div class="meta"><span>${s.feito}/${s.tot} tarefas concluídas</span>${s.late?`<span style="color:var(--danger)">${s.late} ${plural(s.late,"atrasada","atrasadas")}</span>`:""}${p.prazo?`<span>Prazo ${fmtData(p.prazo)}</span>`:""}</div></div><div class="rs"><span class="saude ${sa[0]}">${sa[1]}</span></div></div>`};
+  const linhaG=({g,esp,tx})=>`<div class="hr" data-pg="${esc(g.id)}" data-esp="${esp}"><span aria-hidden="true">${esc(g.icone||"📄")}</span><div style="min-width:0"><div class="tt" tabindex="0">${esc(tx||g.titulo||"Sem título")}</div><div class="meta">${tx?`<span>📄 ${esc(g.titulo||"Sem título")}</span>`:`<span>Pedido por ${esc(nomeDe((g.aprovacoes||[]).find(a=>a.por===meuId)?.pedidoPor))}</span>`}${g.atualizadoEm?`<span>${fmtDT(g.atualizadoEm)}</span>`:""}</div></div><div class="rs"></div></div>`;
   $("#comando").innerHTML=`<div class="kgrid">${sin.map(card).join("")}</div>
-    <section class="hjsec"><h3>${atual.ic} ${atual.nome} <span class="num">${atual.l.length}</span><span class="hint">Regra: ${esc(atual.regra)}</span></h3>${atual.l.length?atual.l.map(atual.tipo==="p"?linhaP:linhaHoje).join(""):`<div class="hjvazio">Nada aqui. 🎉</div>`}</section>`}
+    <section class="hjsec"><h3>${atual.ic} ${atual.nome} <span class="num">${atual.l.length}</span><span class="hint">Regra: ${esc(atual.regra)}</span></h3>${atual.l.length?atual.l.map(atual.tipo==="p"?linhaP:atual.tipo==="t"?linhaHoje:linhaG).join(""):`<div class="hjvazio">Nada aqui. 🎉</div>`}</section>`}
 $("#comando").addEventListener("click",e=>{const b=e.target.closest("[data-cmd]");if(b){cmdSel=b.dataset.cmd;lsSet("tarefas-cmd",cmdSel);renderComando();return}
   const pj=e.target.closest("[data-pj]");if(pj){ir("projeto",{proj:pj.dataset.pj});return}
+  const pg=e.target.closest("[data-pg]");if(pg){ir("pagina",{pg:{id:pg.dataset.pg,esp:pg.dataset.esp}});return}
   const r=e.target.closest(".hr[data-id]");if(!r)return;const t=todas().find(x=>x.id===r.dataset.id);if(!t)return;
   if(e.target.closest("[data-hjfoco]")){const on=t.foco!==hoje();alterarTarefa(t,{foco:on?hoje():null},on?"★ No foco de hoje":"Tirado do foco");return}
   if(e.target.closest(".tt"))abrirTarefa(t)});
@@ -1419,6 +1431,7 @@ function abrirTarefa(t,padrao){
   const h=(d.historico||[]).slice().reverse(),hb=$("#tHist");hb.hidden=n||!(h.length||d.criadoEm);
   hb.innerHTML=`<b>Histórico</b><ol>${h.map(x=>`<li>${fmtDT(x.em)} · ${esc(COLS.find(c=>c.id===x.de)?.nome||"")} → ${esc(COLS.find(c=>c.id===x.para)?.nome||"")}${x.por&&x.por!==meuId&&nomesU[x.por]?` <small>por ${esc(nomesU[x.por])}</small>`:""}</li>`).join("")}${d.criadoEm?`<li>${fmtDT(d.criadoEm)} · criada${d.criadoPor&&d.criadoPor!==meuId&&nomesU[d.criadoPor]?" por "+esc(nomesU[d.criadoPor]):""}</li>`:""}</ol>`;
   const podeT=podeEscrever&&(n||podeEditarTarefaEm(t.projetoId));
+  {const o=t?.origemPagina,pg=o&&pagsDe(o.esp).find(x=>x.id===o.id);$("#tOrigem").hidden=!pg;$("#tOrigem").innerHTML=pg?`<span class="dep"><a href="#" data-orig="1">📄 Veio da página “${esc(pg.titulo||"Sem título")}”</a></span>`:""}
   $("#tDel").hidden=n||!podeT;$("#tConf").hidden=true;$("#tActs").hidden=false;$("#tVer").hidden=n||!hist;
   $("#tConfTx").textContent=hist?"Excluir esta tarefa? Ela fica na Lixeira e pode voltar.":"Excluir esta tarefa de vez?";
   [...$("#frmT").elements].forEach(el=>{if(el.id!=="tCancel"&&!(el.id==="tVisEu"&&semEu))el.disabled=!podeT});$("#tSalvar").hidden=!podeT;
@@ -1606,12 +1619,12 @@ function sanitizar(html){const t=document.createElement("template");t.innerHTML=
     if(REMOVE_TAGS.has(tag)){c.remove();return}
     if(!OK_TAGS.has(tag)){walk(c);c.replaceWith(...c.childNodes);return}
     [...c.attributes].forEach(a=>{const nm=a.name.toLowerCase();let ok=false;
-      if(tag==="A"&&nm==="href"&&/^(https?:|mailto:)/i.test(a.value.trim()))ok=true;
-      if(nm==="class"&&((tag==="UL"&&/\btodo\b/.test(a.value))||(tag==="DIV"&&/\bcallout\b/.test(a.value)))){c.setAttribute("class",tag==="UL"?"todo":"callout");ok=true}
+      if(tag==="A"&&nm==="href"&&(/^(https?:|mailto:)/i.test(a.value.trim())||/^#tarefa-[\w-]{1,60}$/.test(a.value.trim())))ok=true;
+      if(nm==="class"&&((tag==="UL"&&/\btodo\b/.test(a.value))||(tag==="DIV"&&/\b(callout|decisao)\b/.test(a.value)))){c.setAttribute("class",tag==="UL"?"todo":/\bdecisao\b/.test(a.value)?"decisao":"callout");ok=true}
       if(nm==="data-ok"&&tag==="LI")ok=true;
       if(nm==="colspan"||nm==="rowspan")ok=/^\d{1,2}$/.test(a.value);
       if(!ok)c.removeAttribute(a.name)});
-    if(tag==="A"){c.setAttribute("target","_blank");c.setAttribute("rel","noopener noreferrer")}
+    if(tag==="A"&&!/^#tarefa-/.test(c.getAttribute("href")||"")){c.setAttribute("target","_blank");c.setAttribute("rel","noopener noreferrer")}
     walk(c)})};
   walk(t.content);const d=document.createElement("div");d.appendChild(t.content.cloneNode(true));return d.innerHTML}
 const ed=$("#ed");try{document.execCommand("defaultParagraphSeparator",false,"p")}catch(e){}
@@ -1631,7 +1644,7 @@ async function criarPagina(esp,parentId,modelo){
   if(!modoLocal&&esp==="t"&&!colPg){toast("Carregando… tente de novo em alguns segundos");return}
   const p={id:novoId(),titulo:"",icone:"📄",parentId:parentId||null,conteudo:"",ordem:Date.now(),criadoPor:meuId||null};
   if(await salvarPag(p,esp)){if(parentId){abertos.add(parentId);lsSet("tarefas-arvore",[...abertos])}await ir("pagina",{pg:{id:p.id,esp}});setTimeout(()=>$("#pgTitulo").focus(),60)}}
-function editavel(){return podeEscrever&&!pgTrava}
+function editavel(){return podeEscrever&&!pgTrava&&!["aprovado","obsoleto"].includes(estadoPg(pagDe(pgAtual)))}
 function marcaVazio(){ed.classList.toggle("vazio",!ed.textContent.trim()&&!ed.querySelector("hr,table,li"))}
 function renderPagina(){
   const p=pagDe(pgAtual);$("#titulo").hidden=true;$("#subt").hidden=true;
@@ -1647,6 +1660,7 @@ function renderPagina(){
   $("#pgTrava").hidden=!pgTrava;if(pgTrava)$("#pgTrava").innerHTML=`🔒 <span></span> <button class="mv" type="button" id="pgRetravar">Tentar de novo</button>`,$("#pgTrava span").textContent=`${pgTravaQuem||"Outra pessoa"} está editando esta página agora. Você pode ler, mas não alterar.`;
   const autor=p.editadoPor&&p.editadoPor!==meuId?(nomesU[p.editadoPor]||"alguém do time"):"você";
   $("#pgMeta").textContent=p.atualizadoEm?`Editada por ${autor} em ${fmtDT(p.atualizadoEm)}`:"";
+  renderDocEstado(p);
   $("#pgMover").hidden=!podeEscrever||(!colEu&&!modoLocal);$("#pgMover").textContent=pgAtual.esp==="p"?"Mover para o Time":"Mover para Pessoal";$("#pgExcluir").hidden=!podeEscrever||pgTrava;$("#pgVer").hidden=!hist;
   $("#modelos").hidden=!pode||!!ed.textContent.trim()||!!ed.querySelector("hr,table,li");
   if(!$("#modelos").hidden)$("#modelos").innerHTML=`<span>Começar com um modelo:</span>${Object.entries(MODELOS).map(([k,m])=>`<button class="btn sm" type="button" data-mod="${k}">${m.ic} ${m.nome}</button>`).join("")}`;
@@ -1700,6 +1714,13 @@ function aplicar(c){
     case "hr":document.execCommand("insertHTML",false,"<hr><p><br></p>");break;
     case "table":document.execCommand("insertHTML",false,'<table><thead><tr><th>Coluna 1</th><th>Coluna 2</th><th>Coluna 3</th></tr></thead><tbody><tr><td><br></td><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td><td><br></td></tr></tbody></table><p><br></p>');break;
     case "link":abrirLink();return;
+    case "decisao":{/* insertHTML dentro de um parágrafo com texto descarta o bloco; por isso entra como nó depois do bloco atual */
+      let b=blocoAtual();while(b&&b!==ed&&b.parentNode!==ed)b=b.parentNode;
+      const d=document.createElement("div");d.className="decisao";d.innerHTML=`⚖️ <b>Decisão:</b> escreva aqui o que foi decidido — ${esc(nomesU[meuId]||"")} em ${fmtData(hoje())}`;
+      const p=document.createElement("p");p.innerHTML="<br>";
+      if(b&&b!==ed&&(b.textContent.trim()||b.querySelector("img,table,hr")))b.after(d,p);else if(b&&b!==ed)b.replaceWith(d,p);else ed.append(d,p);
+      caretEm(d);break}
+    case "tarefa":tarefaDoTrecho();return;
   }
   ed.querySelectorAll("p>ul,p>ol,p>table,div>ul,div>ol").forEach(l=>{const pai=l.parentElement;if(pai!==ed&&!pai.classList.contains("callout")&&[...pai.childNodes].every(n=>n===l||(n.nodeType===3&&!n.textContent.trim())||n.nodeName==="BR"))pai.replaceWith(l)});
   pgMarcar();
@@ -1707,7 +1728,7 @@ function aplicar(c){
 $("#tb").addEventListener("mousedown",e=>{if(e.target.closest("button"))e.preventDefault()});
 $("#tb").addEventListener("click",e=>{const b=e.target.closest("[data-cmd]");if(b)aplicar(b.dataset.cmd)});
 /* menu "/" */
-const BLOCOS=[["h1","Título 1","T1"],["h2","Título 2","T2"],["h3","Título 3","T3"],["p","Texto","¶"],["ul","Lista","•"],["ol","Lista numerada","1."],["todo","Checklist","☑"],["quote","Citação","❝"],["callout","Destaque","💡"],["code","Código","{}"],["table","Tabela","⊞"],["hr","Divisor","—"]];
+const BLOCOS=[["h1","Título 1","T1"],["h2","Título 2","T2"],["h3","Título 3","T3"],["p","Texto","¶"],["ul","Lista","•"],["ol","Lista numerada","1."],["todo","Checklist","☑"],["quote","Citação","❝"],["callout","Destaque","💡"],["code","Código","{}"],["table","Tabela","⊞"],["decisao","Decisão","⚖️"],["hr","Divisor","—"]];
 let slash=null;
 function fecharSlash(){slash?.el.remove();slash=null}
 function abrirSlash(bloco,q){const l=BLOCOS.filter(([,n])=>chave(n).includes(chave(q)));if(!l.length){fecharSlash();return}
@@ -1761,6 +1782,53 @@ const MODELOS={
   lista:{nome:"Lista de verificação",ic:"✅",titulo:()=>"Checklist — ",html:()=>`<ul class="todo"><li><br></li></ul>`}
 };
 $("#modelos").addEventListener("click",e=>{const b=e.target.closest("[data-mod]");if(!b||!editavel())return;const m=MODELOS[b.dataset.mod];ed.innerHTML=m.html();if(!$("#pgTitulo").value.trim())$("#pgTitulo").value=m.titulo();pgIcone=m.ic;$("#pgIcone").textContent=pgIcone;marcaVazio();$("#modelos").hidden=true;pgMarcar();ed.focus()});
+/* ---------- documentos: estado, aprovações, decisões e tarefas a partir do texto ---------- */
+const ESTADOS_PG={rascunho:["📝","Rascunho"],revisao:["👀","Em revisão"],aprovado:["✅","Aprovado"],obsoleto:["🗄️","Obsoleto"]};
+function estadoPg(p){return p&&ESTADOS_PG[p.estado]?p.estado:"rascunho"}
+const nomeDe=id=>id===meuId?"você":(nomesU[id]||"alguém do time");
+const minhasAprovacoes=()=>[["t",pagT],["p",pagP]].flatMap(([esp,ps])=>ps.filter(g=>estadoPg(g)==="revisao"&&(g.aprovacoes||[]).some(a=>a.por===meuId&&a.status==="pendente")).map(g=>({g,esp})));
+function renderDocEstado(p){const est=estadoPg(p),[ic,nm]=ESTADOS_PG[est],ap=p.aprovacoes||[],box=$("#pgAprov");
+  $("#pgEstado").textContent=`${ic} ${nm} ▾`;$("#pgEstado").hidden=!podeEscrever&&est==="rascunho";
+  const lista=ap.map(a=>`<span class="ap">${a.status==="aprovado"?"✅":a.status==="ajustes"?"✏️":"⏳"} ${esc(nomeDe(a.por))}</span>`).join("");
+  const meu=ap.find(a=>a.por===meuId&&a.status==="pendente");
+  box.className="aprov"+(est==="aprovado"?" ok":est==="obsoleto"?" velho":"");
+  if(est==="revisao"){box.hidden=false;box.innerHTML=`<span>👀 Em revisão. Aprovações:</span>${lista||"<span>nenhuma pedida</span>"}${meu&&podeEscrever?`<span style="margin-left:auto;display:flex;gap:6px"><button class="btn sm primary" type="button" data-ap="sim">Aprovar</button><button class="btn sm" type="button" data-ap="ajustes">Pedir ajustes</button></span>`:""}`}
+  else if(est==="aprovado"){const quem=ap.filter(a=>a.status==="aprovado"),ult=quem.map(a=>a.em||"").sort().pop();box.hidden=false;box.innerHTML=`<span>✅ Aprovado por ${quem.map(a=>esc(nomeDe(a.por))).join(", ")||"—"}${ult?" em "+fmtDT(ult):""}. Para mudar o texto, abra uma nova revisão; esta versão fica guardada em Versões.</span>`}
+  else if(est==="obsoleto"){box.hidden=false;box.innerHTML=`<span>🗄️ Documento obsoleto: fica só para consulta.</span>`}
+  else if(ap.some(a=>a.status==="ajustes")){box.hidden=false;box.innerHTML=`<span>✏️ Pediram ajustes:</span>${lista}`}
+  else box.hidden=true}
+async function gravarEstadoPg(mudar,msg){const ref=pgAtual;await salvarPaginaAtual();const p=pagDe(ref);if(!p)return;
+  const n={...p,...mudar(p)};if(await salvarPag(n,ref.esp)===true){toast(msg,2500);pgCarregado=null;render()}}
+$("#pgEstado").addEventListener("click",e=>{const p=pagDe(pgAtual);if(!p||!podeEscrever)return;const est=estadoPg(p),r=e.currentTarget.getBoundingClientRect();
+  const ops=[];if(est==="rascunho")ops.push(["pedir","👀","Pedir aprovação…"]);if(est==="revisao")ops.push(["rasc","📝","Voltar para rascunho"]);
+  if(est==="aprovado"||est==="obsoleto")ops.push(["nova","📝","Abrir nova revisão"]);if(est!=="obsoleto")ops.push(["obs","🗄️","Marcar como obsoleto"]);
+  menuPop(r,ops.map(([k,ic,t])=>[k,ic,t]),k=>{
+    if(k==="pedir")pedirAprovacao(r);
+    if(k==="rasc")gravarEstadoPg(()=>({estado:"rascunho"}),"Voltou para rascunho");
+    if(k==="nova")gravarEstadoPg(()=>({estado:"rascunho",aprovacoes:[]}),"Nova revisão aberta. A versão anterior fica em Versões.");
+    if(k==="obs")gravarEstadoPg(()=>({estado:"obsoleto"}),"Marcado como obsoleto")})});
+function menuPop(r,ops,cb){document.querySelector(".pop.menu")?.remove();const el=document.createElement("div");el.className="pop menu";el.setAttribute("role","menu");
+  el.innerHTML=ops.map(([k,ic,t])=>`<button type="button" role="menuitem" data-k="${esc(k)}"><i>${ic}</i>${esc(t)}</button>`).join("");document.body.appendChild(el);
+  el.style.top=Math.min(r.bottom+6,innerHeight-60)+"px";el.style.left=Math.max(8,Math.min(r.left,innerWidth-260))+"px";
+  const fora=ev=>{if(!el.contains(ev.target)){el.remove();document.removeEventListener("mousedown",fora,true)}};setTimeout(()=>document.addEventListener("mousedown",fora,true));
+  el.addEventListener("click",ev=>{const b=ev.target.closest("[data-k]");if(!b)return;el.remove();document.removeEventListener("mousedown",fora,true);cb(b.dataset.k)})}
+function pedirAprovacao(r){const ps=pessoasOrg.filter(x=>x.id&&x.id!==meuId);
+  if(!ps.length){toast("Ainda não há outras pessoas do time cadastradas para aprovar.",3500);return}
+  menuPop(r,ps.map(x=>[x.id,"👤",x.name||"Alguém do time"]),id=>gravarEstadoPg(()=>({estado:"revisao",aprovacoes:[{id:novoId(),por:id,status:"pendente",pedidoPor:meuId||null,pedidoEm:new Date().toISOString()}]}),`Aprovação pedida a ${nomeDe(id)}`))}
+$("#pgAprov").addEventListener("click",e=>{const b=e.target.closest("[data-ap]");if(!b)return;const sim=b.dataset.ap==="sim";
+  gravarEstadoPg(p=>{const ap=(p.aprovacoes||[]).map(a=>a.por===meuId&&a.status==="pendente"?{...a,status:sim?"aprovado":"ajustes",em:new Date().toISOString()}:a);
+    const todos=ap.length&&ap.every(a=>a.status==="aprovado");return {aprovacoes:ap,estado:todos?"aprovado":sim?"revisao":"rascunho"}},sim?"Aprovação registrada":"Pedido de ajustes registrado")});
+/* transformar o trecho selecionado em tarefa, com link nos dois sentidos */
+async function tarefaDoTrecho(){const ref=pgAtual,p=pagDe(ref),sel=getSelection(),txt=(sel?.toString()||"").replace(/\s+/g," ").trim();
+  if(!p||!txt||!sel.rangeCount||!ed.contains(sel.anchorNode)){toast("Selecione no texto o trecho que vira tarefa.",3000);return}
+  const range=sel.getRangeAt(0).cloneRange(),id=novoId(),priv=ref.esp==="p";
+  const t={id,_priv:priv,titulo:txt.slice(0,200),descricao:`Criada a partir da página “${p.titulo||"Sem título"}”.`,status:"afazer",prioridade:"media",prazo:null,inicio:null,projetoId:null,respId:null,respNome:null,checklist:[],historico:[],campos:{},criadoPor:meuId||null,ordem:Date.now(),arquivado:false,origemPagina:{id:p.id,esp:ref.esp}};
+  if(!await salvarTarefa(t))return;
+  ed.focus();sel.removeAllRanges();sel.addRange(range);document.execCommand("createLink",false,"#tarefa-"+id);pgMarcar();
+  toast(priv?"Tarefa criada (só você vê) e ligada ao trecho":"Tarefa criada para o time e ligada ao trecho",3000)}
+ed.addEventListener("click",e=>{const a=e.target.closest('a[href^="#tarefa-"]');if(!a)return;e.preventDefault();const t=todas().find(x=>x.id===a.getAttribute("href").slice(8));if(t)abrirTarefa(t);else toast("Essa tarefa foi excluída ou você não tem acesso a ela.",3000)});
+$("#tOrigem").addEventListener("click",e=>{const b=e.target.closest("[data-orig]");if(!b||!editT?.origemPagina)return;$("#dlgT").close();ir("pagina",{pg:editT.origemPagina})});
+
 /* mover e excluir */
 $("#pgExcluir").addEventListener("click",async()=>{const ref=pgAtual,p=pagDe(ref);if(!p)return;const ds=descendentes(pagsDe(ref.esp),p.id);
   if(!await confirmar(`Excluir “${p.titulo||"Sem título"}”${ds.length?` e ${ds.length} ${plural(ds.length,"página dentro dela","páginas dentro dela")}`:""}?${hist?"\n\nElas ficam na Lixeira e podem voltar.":ref.esp==="t"&&souDono?"\n\nA cópia no Supabase continua guardada no histórico.":""}`,"Excluir"))return;
