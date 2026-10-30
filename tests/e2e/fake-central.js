@@ -29,13 +29,19 @@
             dados = JSON.parse(JSON.stringify(dados));
             // como a migração 005: versão velha é recusada; sem versão (ou item novo) passa
             const v = dados._versao; delete dados._versao;
+            // como a migração 006: o papel de quem vê é calculado, nunca gravado; quem cria o projeto é dono
+            if (c === "projetos") {
+              delete dados._papel;
+              if (!ant && !(dados.membros || []).some((m) => m.id === UID)) dados.membros = [...(dados.membros || []), { id: UID, papel: "dono" }];
+            }
             if (ant && typeof v === "number" && v !== ant.dados._versao)
               throw Object.assign(new Error("conflito"), { code: "conflito", versao: ant.dados._versao, por: ant.por || null });
-            const semV = (d) => { const x = { ...d }; delete x._versao; return x; };
+            const semV = (d) => { const x = { ...d }; delete x._versao; delete x._papel; return x; };
             const mudou = !ant || JSON.stringify(semV(ant.dados)) !== JSON.stringify(dados);
             if (!ant) registrar(c, id, "criar", dados);
             else if (mudou) registrar(c, id, "editar", dados);
             dados._versao = !ant ? 1 : ant.dados._versao + (mudou ? 1 : 0);
+            if (c === "projetos") dados._papel = ant?.dados._papel || "dono";
             est.docs[k(c, id)] = { colecao: c, doc_id: id, dados, por: UID };
             salvar(); emitir(c);
             return JSON.parse(JSON.stringify(dados));
