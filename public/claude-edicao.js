@@ -8,6 +8,9 @@
   const URL_TIME = "https://central-vitapower.vercel.app";
 
   let mcp = null, perfis = null, busca = null, timer = null;
+  // com a migração 004 aplicada, lê de central_itens e grava pelas funções central_gravar/central_excluir
+  let fonte = null;
+  const relacional = () => (fonte ||= sql("select to_regclass('public.central_itens') is not null as ok").then((r) => !!r[0]?.ok));
   const ouvintes = new Map();
   window.CENTRAL = { modo: "claude" };
 
@@ -44,7 +47,7 @@
       const cols = [...ouvintes.keys()];
       if (!cols.length) return;
       try {
-        const rows = await sql(`select colecao, doc_id, dados from public.central_docs where colecao in (${cols.map(lit).join(",")})`);
+        const rows = await sql(`select colecao, doc_id, dados from public.${(await relacional()) ? "central_itens" : "central_docs"} where colecao in (${cols.map(lit).join(",")})`);
         const por = new Map(cols.map((c) => [c, new Map()]));
         rows.forEach((r) => por.get(r.colecao)?.set(r.doc_id, r.dados));
         por.forEach((m, c) => ouvintes.get(c).forEach((o) => {
@@ -64,15 +67,21 @@
       doc(id) {
         return {
           async set(d) {
+            if (await relacional()) {
+              const r = await sql(`select public.central_gravar(${lit(c)}, ${lit(id)}, ${lit(JSON.stringify(d))}::jsonb) as dados`);
+              ouvintes.forEach((_, outra) => { if (outra !== c) local(outra, id, null); });
+              local(c, id, r[0]?.dados ?? d);
+              return;
+            }
             await sql(`insert into public.central_docs (colecao, doc_id, dados) values (${lit(c)}, ${lit(id)}, ${lit(JSON.stringify(d))}::jsonb) on conflict (colecao, doc_id) do update set dados = excluded.dados`);
             local(c, id, d);
           },
           async delete() {
-            await sql(`delete from public.central_docs where colecao = ${lit(c)} and doc_id = ${lit(id)}`);
+            await sql((await relacional()) ? `select public.central_excluir(${lit(c)}, ${lit(id)}) as ok` : `delete from public.central_docs where colecao = ${lit(c)} and doc_id = ${lit(id)}`);
             local(c, id, null);
           },
           async get() {
-            const r = await sql(`select dados from public.central_docs where colecao = ${lit(c)} and doc_id = ${lit(id)}`);
+            const r = await sql(`select dados from public.${(await relacional()) ? "central_itens" : "central_docs"} where colecao = ${lit(c)} and doc_id = ${lit(id)}`);
             return { id, exists: !!r[0], data: () => r[0]?.dados };
           },
           async acquire() { return { acquired: true }; },

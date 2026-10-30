@@ -32,8 +32,8 @@ select t.ok((select count(*) from public.central_lixeira where doc_id = 't1') = 
 
 -- A tem um item pessoal e o move para o time (grava no time e exclui no pessoal): não é exclusão
 insert into public.central_docs (colecao, doc_id, dados) values ('pessoal:aaaaaaaa-0000-0000-0000-000000000001', 'p1', '{"titulo":"Ideia","tipo":"pagina"}');
-insert into public.central_docs (colecao, doc_id, dados) values ('tarefas', 'm1', '{"titulo":"Mover"}');
-insert into public.central_docs (colecao, doc_id, dados) values ('pessoal:aaaaaaaa-0000-0000-0000-000000000001', 'm1', '{"titulo":"Mover"}');
+insert into public.central_docs (colecao, doc_id, dados) values ('tarefas', 'm1', '{"tipo":"tarefa","titulo":"Mover"}');
+insert into public.central_docs (colecao, doc_id, dados) values ('pessoal:aaaaaaaa-0000-0000-0000-000000000001', 'm1', '{"tipo":"tarefa","titulo":"Mover"}');
 delete from public.central_docs where colecao = 'tarefas' and doc_id = 'm1';
 select t.ok((select count(*) from public.central_lixeira where doc_id = 'm1') = 0, 'item movido entre Pessoal e Time não vai para a lixeira');
 

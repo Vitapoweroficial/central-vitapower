@@ -116,6 +116,11 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
   const nomeColecao = (n) => (n.startsWith("data/users/") ? "pessoal:" + n.slice(11) : n);
   const ouvintes = new Map(); // colecao -> Set de {mapa, emitir}
   let canal = null, conectouAntes = false;
+  // Com a migração 004 aplicada, lê da visão central_itens (montada das tabelas relacionais) e grava pelas funções
+  // central_gravar/central_excluir. Sem ela, continua em central_docs como antes.
+  let fonte = null;
+  const relacional = () => (fonte ||= sb.from("central_itens").select("doc_id").limit(1).then(({ error }) => !error, () => false));
+  const TABELAS = ["central_tarefas", "central_projetos", "central_paginas", "central_config", "central_comentarios", "central_dependencias"];
 
   function snap(mapa) {
     return { docs: [...mapa.entries()].map(([id, dados]) => ({ id, exists: true, data: () => dados })) };
@@ -123,7 +128,7 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
   async function carregar(colecao) {
     const mapa = new Map();
     for (let de = 0; ; de += 1000) {
-      const { data, error } = await sb.from("central_docs").select("doc_id,dados").eq("colecao", colecao).range(de, de + 999);
+      const { data, error } = await sb.from((await relacional()) ? "central_itens" : "central_docs").select("doc_id,dados").eq("colecao", colecao).order("doc_id").range(de, de + 999);
       if (error) throw error;
       data.forEach((r) => mapa.set(r.doc_id, r.dados));
       if (data.length < 1000) break;
@@ -134,18 +139,45 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
     const s = ouvintes.get(colecao); if (!s) return;
     s.forEach((o) => { if (dados === null) o.mapa.delete(id); else o.mapa.set(id, dados); o.emitir(); });
   }
-  function ligarCanal() {
+  // tabelas relacionais: um aviso de mudança traz só o id; busca o registro montado e coloca na coleção certa
+  // (uma tarefa pode ter passado de Pessoal para o Time, ou sumido por exclusão)
+  const pendentes = new Set();
+  let timerBusca = null;
+  function mudou(id) {
+    if (!id) return;
+    pendentes.add(id);
+    clearTimeout(timerBusca);
+    timerBusca = setTimeout(async () => {
+      const ids = [...pendentes]; pendentes.clear();
+      const { data, error } = await sb.from("central_itens").select("colecao,doc_id,dados").in("doc_id", ids);
+      if (error) { recarregarTudo(); return; }
+      const achou = new Map(data.map((r) => [r.doc_id, r]));
+      ids.forEach((id) => {
+        const r = achou.get(id);
+        ouvintes.forEach((_, c) => { if (!r || r.colecao !== c) aplicar(c, id, null); });
+        if (r) aplicar(r.colecao, r.doc_id, r.dados);
+      });
+    }, 150);
+  }
+  async function ligarCanal() {
     if (canal) return;
-    canal = sb.channel("central-docs")
-      .on("postgres_changes", { event: "*", schema: "public", table: "central_docs" }, (p) => {
+    canal = sb.channel("central-docs");
+    if (await relacional()) {
+      TABELAS.forEach((table) => canal.on("postgres_changes", { event: "*", schema: "public", table }, (p) => {
+        const r = p.eventType === "DELETE" ? p.old : p.new;
+        mudou(r?.tarefa_id || r?.id || r?.chave);
+      }));
+    } else {
+      canal.on("postgres_changes", { event: "*", schema: "public", table: "central_docs" }, (p) => {
         if (p.eventType === "DELETE") aplicar(p.old?.colecao, p.old?.doc_id, null);
         else aplicar(p.new.colecao, p.new.doc_id, p.new.dados);
-      })
-      .subscribe((st) => {
-        if (st !== "SUBSCRIBED") return;
-        if (conectouAntes) recarregarTudo(); // voltou depois de cair: busca o que mudou nesse meio-tempo
-        conectouAntes = true;
       });
+    }
+    canal.subscribe((st) => {
+      if (st !== "SUBSCRIBED") return;
+      if (conectouAntes) recarregarTudo(); // voltou depois de cair: busca o que mudou nesse meio-tempo
+      conectouAntes = true;
+    });
   }
   async function recarregarTudo() {
     for (const [colecao, s] of ouvintes) {
@@ -161,17 +193,26 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
       doc(id) {
         return {
           async set(dados) {
+            if (await relacional()) {
+              const { data, error } = await sb.rpc("central_gravar", { p_colecao: c, p_id: id, p_dados: dados });
+              if (error) throw error;
+              ouvintes.forEach((_, outra) => { if (outra !== c) aplicar(outra, id, null); });
+              aplicar(c, id, data);
+              return;
+            }
             const { error } = await sb.from("central_docs").upsert({ colecao: c, doc_id: id, dados });
             if (error) throw error;
             aplicar(c, id, dados);
           },
           async delete() {
-            const { error } = await sb.from("central_docs").delete().eq("colecao", c).eq("doc_id", id);
+            const { error } = (await relacional())
+              ? await sb.rpc("central_excluir", { p_colecao: c, p_id: id })
+              : await sb.from("central_docs").delete().eq("colecao", c).eq("doc_id", id);
             if (error) throw error;
             aplicar(c, id, null);
           },
           async get() {
-            const { data } = await sb.from("central_docs").select("dados").eq("colecao", c).eq("doc_id", id).maybeSingle();
+            const { data } = await sb.from((await relacional()) ? "central_itens" : "central_docs").select("dados").eq("colecao", c).eq("doc_id", id).maybeSingle();
             return { id, exists: !!data, data: () => data?.dados };
           },
           // a trava de edição de páginas fica sempre liberada aqui
