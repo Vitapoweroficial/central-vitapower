@@ -253,3 +253,23 @@ test("Central de Comando: conta o que pede ação e abre o registro com um cliqu
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Busca global: acha tarefa por comentário e projeto pelo nome, e abre com Enter", async () => {
+  const { page, ctx, erros } = await abrir();
+  await criarRapida(page, "Comprar tampas");
+  await page.locator("#board .card", { hasText: "Comprar tampas" }).click();
+  await page.fill("#tComTx", "fornecedor Henriplast mandou orçamento");
+  await page.click("#tComAdd");
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => (d.dados.comentarios || []).length));
+  await page.click("#tCancel");
+  await page.keyboard.press("Control+k");
+  await page.locator("#dlgBusca[open]").waitFor();
+  await page.fill("#gbQ", "henriplást");
+  await page.locator("#gbRes .gbi", { hasText: "Comprar tampas" }).waitFor();
+  assert.match(await page.locator("#gbRes").innerText(), /Comentário/);
+  await page.keyboard.press("Enter");
+  await page.locator("#dlgT[open]").waitFor();
+  assert.equal(await page.inputValue("#tTitulo"), "Comprar tampas");
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

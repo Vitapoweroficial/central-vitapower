@@ -247,6 +247,13 @@ input,textarea,select{font:inherit;color:var(--fg);background:var(--surface);bor
 .acs .mrow{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--fg)}
 .acs .mrow span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acs .mrow select{width:auto;padding:4px 6px;font-size:12.5px}
+.gbres{display:grid;gap:2px;max-height:min(60vh,520px);overflow-y:auto}
+.gbres h4{margin:8px 4px 2px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.gbi{font:inherit;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;text-align:left;border:0;background:transparent;color:var(--fg);padding:7px 8px;border-radius:8px;cursor:pointer}
+.gbi.on,.gbi:hover{background:var(--accent-soft)}
+.gbi b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbi small{grid-column:2;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gbi mark{background:color-mix(in srgb,var(--warn) 30%,transparent);color:inherit;border-radius:2px}
 .papel{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
 .saude.ok{background:var(--ok-bg);color:var(--ok)}.saude.risco{background:var(--warn-bg);color:var(--warn)}.saude.atras{background:var(--danger-bg);color:var(--danger)}.saude.fim{background:var(--sunk);color:var(--muted)}
 /* painel */
@@ -479,6 +486,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <input type="search" id="sbusca" placeholder="Buscar páginas…" autocomplete="off" aria-label="Buscar páginas">
     <nav class="nav" id="navAt">
       <button type="button" class="ni" id="navIA" hidden><span class="ic">✨</span><span class="tx">Assistente</span></button>
+      <button type="button" class="ni" id="navBusca"><span class="ic">🔎</span><span class="tx">Buscar tudo</span><span class="n">Ctrl K</span></button>
       <button type="button" class="ni" data-go="hoje"><span class="ic">☀️</span><span class="tx">Hoje</span><span class="n" id="nHoje"></span></button>
       <button type="button" class="ni" data-go="comando"><span class="ic">🎯</span><span class="tx">Central de Comando</span><span class="n" id="nCmd"></span></button>
       <button type="button" class="ni" data-go="painel"><span class="ic">📊</span><span class="tx">Painel</span></button>
@@ -628,6 +636,13 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
     <div class="row" style="align-items:end"><label>Novo campo<input id="cNome" autocomplete="off" placeholder="Ex.: Cliente, Etiquetas, Valor"></label><label>Tipo<select id="cTipo"><option value="selecao">Seleção (uma opção)</option><option value="multi">Etiquetas (várias opções)</option><option value="texto">Texto</option><option value="numero">Número</option><option value="moeda">Valor em R$</option><option value="data">Data</option><option value="caixa">Caixa de marcar</option><option value="link">Link</option></select></label></div>
     <div><button class="btn" type="button" id="cAdd">+ Adicionar campo</button></div>
     <div class="actions"><button class="btn" type="button" id="cCancel">Cancelar</button><button class="btn primary" type="submit">Salvar campos</button></div>
+  </form>
+</dialog>
+<dialog id="dlgBusca" aria-label="Buscar em tudo">
+  <form class="f" method="dialog" style="gap:8px">
+    <input type="search" id="gbQ" placeholder="Buscar tarefas, projetos, páginas, comentários e pessoas…" autocomplete="off" aria-label="Buscar">
+    <div id="gbRes" class="gbres" role="listbox"></div>
+    <div class="actions"><span class="sub sp" style="margin:0;font-size:12px">↑↓ para escolher · Enter abre · só aparece o que você tem acesso</span><button class="btn" type="button" id="gbFechar">Fechar</button></div>
   </form>
 </dialog>
 <dialog id="dlgV">
@@ -1185,6 +1200,33 @@ $("#comando").addEventListener("click",e=>{const b=e.target.closest("[data-cmd]"
   if(e.target.closest("[data-hjfoco]")){const on=t.foco!==hoje();alterarTarefa(t,{foco:on?hoje():null},on?"★ No foco de hoje":"Tirado do foco");return}
   if(e.target.closest(".tt"))abrirTarefa(t)});
 $("#comando").addEventListener("change",e=>{const c=e.target.closest("[data-hjck]");if(!c)return;const t=todas().find(x=>x.id===c.closest(".hr").dataset.id);if(t)moverTarefa(t,c.checked?"feito":"afazer")});
+
+/* ---------- busca global: tudo o que esta pessoa pode ver (o banco já filtrou pelas permissões) ---------- */
+let gbItens=[],gbSel=0;
+const textoDe=html=>{const d=document.createElement("div");d.innerHTML=html||"";return d.textContent||""};
+function trecho(txt,q){const t=(txt||"").replace(/\s+/g," ").trim(),i=chave(t).indexOf(q);if(i<0)return esc(t.slice(0,90));
+  const a=Math.max(0,i-30),b=Math.min(t.length,i+q.length+60);return (a?"…":"")+esc(t.slice(a,i))+"<mark>"+esc(t.slice(i,i+q.length))+"</mark>"+esc(t.slice(i+q.length,b))+(b<t.length?"…":"")}
+function buscarTudo(qq){const q=chave(qq);if(q.length<2)return[];const out=[],tem=s=>chave(s).includes(q);
+  todas().forEach(t=>{let onde=null;
+    if(tem(t.titulo))onde=["",t.titulo];else if(tem(t.descricao))onde=["Detalhes",t.descricao];
+    else{const c=(t.comentarios||[]).find(c=>tem(c.texto));if(c)onde=["Comentário",c.texto];else{const k=(t.checklist||[]).find(k=>tem(k.t));if(k)onde=["Checklist",k.t];else{const l=(t.links||[]).find(l=>tem(l.nome)||tem(l.url));if(l)onde=["Link",l.nome||l.url]}}}
+    if(onde)out.push({g:"Tarefas",ic:t.status==="feito"?"✅":"☐",tit:t.titulo||"(sem título)",sub:(projDe(t.projetoId)?.nome?projDe(t.projetoId).nome+" · ":"")+(onde[0]?onde[0]+": ":"")+"",tx:onde[0]?onde[1]:"",abrir:()=>abrirTarefa(t),peso:onde[0]?1:0})});
+  projetos.forEach(p=>{if(tem(p.nome)||tem(p.descricao))out.push({g:"Projetos",ic:"🗂️",tit:p.nome,sub:"",tx:tem(p.nome)?"":p.descricao,abrir:()=>ir("projeto",{proj:p.id}),peso:tem(p.nome)?0:1})});
+  [["t",pagT],["p",pagP]].forEach(([esp,ps])=>ps.forEach(g=>{const c=textoDe(g.conteudo);if(tem(g.titulo)||tem(c))out.push({g:"Páginas",ic:g.icone||"📄",tit:g.titulo||"Sem título",sub:esp==="p"?"🔒 Pessoal · ":"",tx:tem(g.titulo)?"":c,abrir:()=>ir("pagina",{pg:{id:g.id,esp}}),peso:tem(g.titulo)?0:1})}));
+  pessoasOrg.forEach(u=>{if(u.id&&tem(u.name)){const n=compart.filter(t=>t.respId===u.id&&t.status!=="feito").length;out.push({g:"Pessoas",ic:"👤",tit:u.name,sub:`${n} ${plural(n,"tarefa aberta","tarefas abertas")} · `,tx:"",abrir:()=>{fResp=u.id;ir("time").then(()=>{fResp=u.id;render()})},peso:0})}});
+  const ordem=["Tarefas","Projetos","Páginas","Pessoas"];
+  return out.sort((a,b)=>ordem.indexOf(a.g)-ordem.indexOf(b.g)||a.peso-b.peso).filter((x,i,arr)=>arr.slice(0,i).filter(y=>y.g===x.g).length<12)}
+function renderBusca(){const q=$("#gbQ").value;gbItens=buscarTudo(q);gbSel=Math.min(gbSel,Math.max(0,gbItens.length-1));const qk=chave(q);let g="";
+  $("#gbRes").innerHTML=q.trim().length<2?`<div class="hjvazio">Digite pelo menos 2 letras.</div>`:!gbItens.length?`<div class="hjvazio">Nada encontrado para “${esc(q)}”.</div>`:
+    gbItens.map((x,i)=>(x.g!==g?`<h4>${(g=x.g)}</h4>`:"")+`<button type="button" class="gbi ${i===gbSel?"on":""}" role="option" aria-selected="${i===gbSel}" data-gb="${i}"><span aria-hidden="true">${esc(x.ic)}</span><b>${trecho(x.tit,qk)}</b>${x.sub||x.tx?`<small>${esc(x.sub)}${x.tx?trecho(x.tx,qk):""}</small>`:""}</button>`).join("")}
+function abrirBusca(){$("#gbQ").value="";gbSel=0;renderBusca();$("#app").classList.remove("aberta");$("#dlgBusca").showModal();setTimeout(()=>$("#gbQ").focus(),20)}
+function escolherBusca(i){const x=gbItens[i];if(!x)return;$("#dlgBusca").close();x.abrir()}
+$("#navBusca").addEventListener("click",abrirBusca);
+$("#gbFechar").addEventListener("click",()=>$("#dlgBusca").close());
+$("#gbQ").addEventListener("input",()=>{gbSel=0;renderBusca()});
+$("#gbQ").addEventListener("keydown",e=>{if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(!gbItens.length)return;gbSel=(gbSel+(e.key==="ArrowDown"?1:-1)+gbItens.length)%gbItens.length;renderBusca();$("#gbRes .gbi.on")?.scrollIntoView({block:"nearest"})}else if(e.key==="Enter"){e.preventDefault();escolherBusca(gbSel)}});
+$("#gbRes").addEventListener("click",e=>{const b=e.target.closest("[data-gb]");if(b)escolherBusca(+b.dataset.gb)});
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"&&!document.querySelector("dialog[open]:not(#dlgBusca)")){e.preventDefault();if($("#dlgBusca").open)$("#gbQ").focus();else abrirBusca()}});
 
 /* ---------- hoje / foco do dia ---------- */
 function linhaHoje(t){const p=projDe(t.projetoId),sp=situPrazo(t),c=COLS.find(c=>c.id===(t.status||"afazer")),foco=t.foco===hoje();
