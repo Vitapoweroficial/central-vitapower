@@ -56,18 +56,15 @@ language sql stable security definer set search_path = '' as $$
 revoke all on function central_priv.ve_historico(text, text) from public, anon;
 grant execute on function central_priv.ve_historico(text, text) to authenticated;
 
-drop policy "ler" on public.central_projetos;
-create policy "ler" on public.central_projetos for select to authenticated using (central_priv.papel_projeto(id) is not null);
-drop policy "ler" on public.central_tarefas;
-create policy "ler" on public.central_tarefas for select to authenticated using (central_priv.ve_tarefa(privada, dono, projeto_id));
-drop policy "ler" on public.central_dependencias;
-create policy "ler" on public.central_dependencias for select to authenticated
+alter policy "ler" on public.central_projetos
+  using (central_priv.papel_projeto(id) is not null);
+alter policy "ler" on public.central_tarefas
+  using (central_priv.ve_tarefa(privada, dono, projeto_id));
+alter policy "ler" on public.central_dependencias
   using (exists (select 1 from public.central_tarefas t where t.id = tarefa_id and central_priv.ve_tarefa(t.privada, t.dono, t.projeto_id)));
-drop policy "ler" on public.central_comentarios;
-create policy "ler" on public.central_comentarios for select to authenticated
+alter policy "ler" on public.central_comentarios
   using (exists (select 1 from public.central_tarefas t where t.id = tarefa_id and central_priv.ve_tarefa(t.privada, t.dono, t.projeto_id)));
-drop policy "ler" on public.central_docs_historico;
-create policy "ler" on public.central_docs_historico for select to authenticated
+alter policy "ler" on public.central_docs_historico
   using (central_priv.pode_ver(colecao) and central_priv.ve_historico(colecao, doc_id));
 
 alter table public.central_projeto_membros enable row level security;
