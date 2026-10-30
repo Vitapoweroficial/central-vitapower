@@ -13,7 +13,7 @@ $RUN "$BIN/initdb" -D "$TMP/data" -U postgres -A trust >/dev/null
 $RUN "$BIN/pg_ctl" -D "$TMP/data" -o "-p $PORT -k $TMP -c listen_addresses='' -c wal_level=logical" -l "$TMP/log" -w start >/dev/null
 PSQL=(psql -X -q -v ON_ERROR_STOP=1 -h "$TMP" -p "$PORT" -U postgres -d postgres)
 "${PSQL[@]}" -f tests/db/supabase-stub.sql
-for f in supabase/001_central.sql supabase/003_historico.sql supabase/004_relacional.sql supabase/005_concorrencia.sql supabase/006_permissoes.sql supabase/007_documentos.sql; do "${PSQL[@]}" -f "$f"; done
+for f in supabase/001_central.sql supabase/003_historico.sql supabase/004_relacional.sql supabase/005_concorrencia.sql supabase/006_permissoes.sql supabase/007_documentos.sql supabase/008_notificacoes.sql; do "${PSQL[@]}" -f "$f"; done
 falhou=0
 for t in ${TESTES:-tests/db/*.test.sql}; do
   if "${PSQL[@]}" ${SAIDA:--o /dev/null} -f "$t"; then echo "ok   $t"; else echo "FALHOU $t"; falhou=1; fi

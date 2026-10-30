@@ -330,3 +330,49 @@ test("Documentos: trecho vira tarefa ligada, decisão registrada, aprovação tr
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Notificações e menções: @ no comentário e na página, aviso abre a tarefa", async () => {
+  const { page, ctx, erros } = await abrir();
+  await criarRapida(page, "Revisar rótulo do whey");
+  await page.click("#board .card >> text=Revisar rótulo do whey");
+  await page.locator("#dlgT[open]").waitFor();
+  // menção no comentário: digita @Bi, escolhe na lista e envia
+  await page.click("#tComTx");
+  await page.keyboard.type("@Bi");
+  await page.locator(".pop [data-mc]", { hasText: "Bia Qualidade" }).waitFor();
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("confere a tabela?");
+  assert.equal(await page.inputValue("#tComTx"), "@Bia Qualidade confere a tabela?");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => (d.dados.comentarios || []).some((c) => (c.mencoes || []).includes("bbbbbbbb-0000-0000-0000-000000000002"))));
+  await page.locator("#tComs .mencao", { hasText: "@Bia Qualidade" }).waitFor();
+  const id = tarefa(await estado(page), "Revisar rótulo do whey").doc_id;
+  await page.keyboard.press("Escape");
+  await page.locator("#dlgT").waitFor({ state: "hidden" });
+
+  // chega um aviso: o sino mostra 1, a lista abre a tarefa e o aviso fica lido
+  await page.evaluate((doc) => window.__fakeAviso({ tipo: "comentario", colecao: "tarefas", doc_id: doc, titulo: "Revisar rótulo do whey", trecho: "pode aprovar" }), id);
+  await page.waitForFunction(() => document.querySelector("#nAvisos").textContent === "1");
+  await page.click("#navAvisos");
+  await page.locator("#avisos .avi.nova", { hasText: "Bia Qualidade" }).waitFor();
+  await page.click("#avisos .avi");
+  await page.locator("#dlgT[open]").waitFor();
+  assert.equal(await page.inputValue("#tTitulo"), "Revisar rótulo do whey");
+  await page.waitForFunction(() => document.querySelector("#nAvisos").textContent === "");
+  await page.keyboard.press("Escape");
+
+  // menção na página vira um marcador com o id da pessoa
+  await page.click("#addTime");
+  await page.locator("#vPagina:not([hidden])").waitFor();
+  await page.waitForFunction(() => document.activeElement?.id === "pgTitulo");
+  await page.fill("#pgTitulo", "Reunião de rótulos");
+  await page.click("#ed");
+  await page.keyboard.type("Falar com @Bi");
+  await page.locator(".pop [data-mc]", { hasText: "Bia Qualidade" }).waitFor();
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("amanhã");
+  await page.keyboard.press("Control+s");
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.tipo === "pagina" && /data-mencao="bbbbbbbb-0000-0000-0000-000000000002"/.test(d.dados.conteudo || "")));
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
