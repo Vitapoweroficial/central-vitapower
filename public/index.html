@@ -688,6 +688,16 @@ function gravarLocal(){lsSet("tarefas-local",{pessoais,compart,projetos,pagT,pag
 function trocaLocal(arr,obj){const k=arr.findIndex(x=>x.id===obj.id);if(k>=0)arr[k]=obj;else arr.push(obj)}
 function erroGravar(e,oque){if(e&&e.code==="invalid_argument"){podeEscrever=false;aviso("Você pode ver, mas não alterar. Peça acesso de editor a quem compartilhou a página.");render()}
   else if(e&&e.code==="quota_exceeded")toast("Limite de registros atingido. Exclua itens antigos para continuar.",4000);else toast(`Não foi possível salvar ${oque}. Tente de novo.`)}
+/* edição simultânea: cada item vem com "_versao"; se outra pessoa salvou no meio-tempo, o banco recusa e aqui a pessoa escolhe */
+async function gravar(ref,id,d,oque){
+  const fim=r=>{if(r&&r._versao!=null)d._versao=r._versao;return true};
+  try{return fim(await ref.doc(id).set(d))}
+  catch(e){if(e?.code!=="conflito")throw e;
+    const quem=e.por&&e.por!==meuId?(nomesU[e.por]||"Outra pessoa do time"):"";
+    const msg=`${quem?quem+" salvou":"Este item foi salvo em outro lugar (outra aba, aparelho ou a versão do Claude)"} ${quem?oque+" ":""}enquanto você editava.\n\nSalvar a sua versão por cima? A versão anterior continua guardada em Versões.\nCancelar mantém o que já está salvo.`;
+    if(!await confirmar(msg,"Salvar a minha")){toast("Mantida a versão que já estava salva.",3000);return "descartado"}
+    d._versao=e.versao;return fim(await ref.doc(id).set(d))}}
+function descartouEdicao(){["#dlgT","#dlgP"].forEach(s=>{if($(s).open)$(s).close()});render()}
 /* repetição: ao concluir uma tarefa que se repete, cria a próxima */
 const REP={diaria:"Todo dia",uteis:"Dias úteis",semanal:"Toda semana",quinzenal:"A cada 2 semanas",mensal:"Todo mês"};
 const ehUtil=iso=>{const w=new Date(iso+"T12:00:00").getDay();return w!==0&&w!==6};
@@ -712,7 +722,7 @@ async function salvarTarefa0(t,antes){
   const mudouLugar=antes&&antes.id&&antes._priv!==t._priv;
   const aplica=()=>{pessoais=pessoais.filter(x=>x.id!==t.id);compart=compart.filter(x=>x.id!==t.id);(t._priv?pessoais:compart).push({...d,id:t.id,_priv:!!t._priv})};
   if(modoLocal){aplica();gravarLocal();render();return true}
-  try{await (t._priv?colEu:colT).doc(t.id).set(d);if(mudouLugar){try{await (antes._priv?colEu:colT).doc(antes.id).delete()}catch(e){}}aplica();render();return true}
+  try{if(await gravar(t._priv?colEu:colT,t.id,d,"esta tarefa")==="descartado"){descartouEdicao();return false}if(mudouLugar){try{await (antes._priv?colEu:colT).doc(antes.id).delete()}catch(e){}}aplica();render();return true}
   catch(e){erroGravar(e,"a tarefa");return false}
 }
 async function excluirTarefa(t){
@@ -723,7 +733,7 @@ async function excluirTarefa(t){
 async function salvarProjeto(p){
   const d=JSON.parse(JSON.stringify(p));delete d.id;d.atualizadoEm=new Date().toISOString();if(!d.criadoEm)d.criadoEm=d.atualizadoEm;
   if(modoLocal){trocaLocal(projetos,{...d,id:p.id});gravarLocal();render();return true}
-  try{await colP.doc(p.id).set(d);trocaLocal(projetos,{...d,id:p.id});render();return true}catch(e){erroGravar(e,"o projeto");return false}
+  try{if(await gravar(colP,p.id,d,"este projeto")==="descartado"){descartouEdicao();return false}trocaLocal(projetos,{...d,id:p.id});render();return true}catch(e){erroGravar(e,"o projeto");return false}
 }
 async function alterarTarefa(t,patch,msg){
   if(!podeEscrever)return false;const n={...t,...patch};
@@ -1458,14 +1468,14 @@ function sanitizar(html){const t=document.createElement("template");t.innerHTML=
     walk(c)})};
   walk(t.content);const d=document.createElement("div");d.appendChild(t.content.cloneNode(true));return d.innerHTML}
 const ed=$("#ed");try{document.execCommand("defaultParagraphSeparator",false,"p")}catch(e){}
-let pgSujo=false,pgTimer=null,pgTrava=false,pgTravaQuem="",pgTravaTimer=null,pgCarregado=null,pgHtmlCarregado="",pgSalvando=false,pgIcone="📄";
+let pgSujo=false,pgTimer=null,pgTrava=false,pgTravaQuem="",pgTravaTimer=null,pgCarregado=null,pgHtmlCarregado="",pgSalvando=false,pgIcone="📄",pgVersao=null;
 const pagDe=ref=>ref?pagsDe(ref.esp).find(p=>p.id===ref.id)||null:null;
 function descendentes(ps,id){const out=[];const add=pid=>ps.filter(p=>p.parentId===pid).forEach(p=>{out.push(p);add(p.id)});add(id);return out}
 async function salvarPag(p,esp){
   const d=JSON.parse(JSON.stringify(p));delete d.id;d.tipo="pagina";d.atualizadoEm=new Date().toISOString();if(!d.criadoEm)d.criadoEm=d.atualizadoEm;d.editadoPor=meuId||null;
   const arr=esp==="p"?pagP:pagT;
   if(modoLocal){trocaLocal(arr,{...d,id:p.id});gravarLocal();renderSide();return true}
-  try{await (esp==="p"?colEu:colPg).doc(p.id).set(d);trocaLocal(arr,{...d,id:p.id});renderSide();return true}catch(e){erroGravar(e,"a página");return false}}
+  try{if(await gravar(esp==="p"?colEu:colPg,p.id,d,"esta página")==="descartado")return "descartado";trocaLocal(arr,{...d,id:p.id});renderSide();return true}catch(e){erroGravar(e,"a página");return false}}
 async function excluirPag(p,esp){
   if(modoLocal){if(esp==="p")pagP=pagP.filter(x=>x.id!==p.id);else pagT=pagT.filter(x=>x.id!==p.id);gravarLocal();return true}
   try{await (esp==="p"?colEu:colPg).doc(p.id).delete();if(esp==="p")pagP=pagP.filter(x=>x.id!==p.id);else pagT=pagT.filter(x=>x.id!==p.id);return true}catch(e){toast("Não foi possível excluir a página");return false}}
@@ -1483,9 +1493,9 @@ function renderPagina(){
   $("#crumbs").innerHTML=`<span>${pgAtual.esp==="p"?"🔒 Pessoal":"Time"}</span>`+cad.map(a=>` <span>›</span><button type="button" data-crumb="${esc(a.id)}"></button>`).join("")+` <span>›</span><span>${esc(p.titulo||"Sem título")}</span>`;
   $("#crumbs").querySelectorAll("[data-crumb]").forEach(b=>{const a=ps.find(x=>x.id===b.dataset.crumb);b.textContent=(a?.icone||"📄")+" "+(a?.titulo||"Sem título")});
   if(pgCarregado!==p.id){pgCarregado=p.id;pgSujo=false;clearTimeout(pgTimer);pgIcone=p.icone||"📄";$("#pgIcone").textContent=pgIcone;$("#pgTitulo").value=p.titulo||"";
-    pgHtmlCarregado=sanitizar(p.conteudo||"");ed.innerHTML=pgHtmlCarregado;marcaVazio();$("#pgSalvo").textContent="";pgTrava=false;pgTravaQuem="";travarPg(p.id)}
+    pgHtmlCarregado=sanitizar(p.conteudo||"");pgVersao=p._versao??null;ed.innerHTML=pgHtmlCarregado;marcaVazio();$("#pgSalvo").textContent="";pgTrava=false;pgTravaQuem="";travarPg(p.id)}
   else if(!pgSujo&&!pgSalvando){const fora=!ed.contains(document.activeElement)&&document.activeElement!==$("#pgTitulo");const novo=sanitizar(p.conteudo||"");
-    if(novo!==pgHtmlCarregado&&fora){pgHtmlCarregado=novo;ed.innerHTML=novo;marcaVazio()}if(fora){$("#pgTitulo").value=p.titulo||"";pgIcone=p.icone||"📄";$("#pgIcone").textContent=pgIcone}}
+    if(novo!==pgHtmlCarregado&&fora){pgHtmlCarregado=novo;ed.innerHTML=novo;marcaVazio()}if(fora){pgVersao=p._versao??null;$("#pgTitulo").value=p.titulo||"";pgIcone=p.icone||"📄";$("#pgIcone").textContent=pgIcone}}
   const pode=editavel();ed.contentEditable=pode?"true":"false";$("#pgTitulo").readOnly=!pode;$("#pgIcone").disabled=!pode;$("#tb").hidden=!pode;
   $("#pgTrava").hidden=!pgTrava;if(pgTrava)$("#pgTrava").innerHTML=`🔒 <span></span> <button class="mv" type="button" id="pgRetravar">Tentar de novo</button>`,$("#pgTrava span").textContent=`${pgTravaQuem||"Outra pessoa"} está editando esta página agora. Você pode ler, mas não alterar.`;
   const autor=p.editadoPor&&p.editadoPor!==meuId?(nomesU[p.editadoPor]||"alguém do time"):"você";
@@ -1512,8 +1522,10 @@ async function salvarPaginaAtual(){
   clearTimeout(pgTimer);const ref=pgAtual,p=pagDe(ref);if(!p||!pgSujo||!editavel())return;
   const html=sanitizar(ed.innerHTML);if(html.length>240000){toast("A página ficou grande demais para salvar. Divida o conteúdo em subpáginas.",5000);return}
   pgSujo=false;pgSalvando=true;$("#pgSalvo").textContent="Salvando…";
-  const ok=await salvarPag({...p,titulo:$("#pgTitulo").value.trim(),icone:pgIcone,conteudo:html},ref.esp);pgSalvando=false;
-  if(ok){pgHtmlCarregado=html;const d=new Date();if(pgAtual?.id===ref.id)$("#pgSalvo").textContent=`Salvo às ${pad(d.getHours())}:${pad(d.getMinutes())}`;$("#crumbs span:last-child")&&($("#crumbs").lastElementChild.textContent=$("#pgTitulo").value.trim()||"Sem título")}
+  const base={...p};if(pgVersao!=null)base._versao=pgVersao;else delete base._versao;
+  const ok=await salvarPag({...base,titulo:$("#pgTitulo").value.trim(),icone:pgIcone,conteudo:html},ref.esp);pgSalvando=false;
+  if(ok==="descartado"){pgSujo=false;if(pgAtual?.id===ref.id){pgCarregado=null;$("#pgSalvo").textContent="";render()}return}
+  if(ok){pgVersao=pagDe(ref)?._versao??null;pgHtmlCarregado=html;const d=new Date();if(pgAtual?.id===ref.id)$("#pgSalvo").textContent=`Salvo às ${pad(d.getHours())}:${pad(d.getMinutes())}`;$("#crumbs span:last-child")&&($("#crumbs").lastElementChild.textContent=$("#pgTitulo").value.trim()||"Sem título")}
   else{pgSujo=true;if(pgAtual?.id===ref.id){$("#pgSalvo").textContent="Não salvou. Tentando de novo…";pgTimer=setTimeout(salvarPaginaAtual,5000)}}}
 async function flushPagina(){if(vista==="pagina"&&pgSujo)await salvarPaginaAtual();clearInterval(pgTravaTimer);pgCarregado=null;pgTrava=false;fecharSlash()}
 window.addEventListener("beforeunload",e=>{if(pgSujo){salvarPaginaAtual();e.preventDefault()}});
@@ -1695,7 +1707,7 @@ async function sbRestaurar(){
   const resumo=SB.cols.map(c=>{const n=falta.filter(r=>r.c===c).length;return n?`${n} ${nomes[c]}`:""}).filter(Boolean).join(", ");
   if(!await confirmar(`Trazer de volta do Supabase: ${resumo}?\n\nSó entram os registros que não estão nesta página. Nada do que já existe aqui é alterado.`,"Restaurar"))return;
   const REF={tarefas:colT,projetos:colP,paginas:colPg,config:colCfg,pessoal:colEu};
-  let n=0,f=0;for(const r of falta){try{const ref=REF[r.c];if(!ref)throw 0;await ref.doc(r.id).set(r.d);n++}catch(e){f++}if(n&&n%10===0)toast(`Restaurando… ${n} de ${falta.length}`,1500)}
+  let n=0,f=0;for(const r of falta){try{const ref=REF[r.c];if(!ref)throw 0;const dd={...r.d};delete dd._versao;await ref.doc(r.id).set(dd);n++}catch(e){f++}if(n&&n%10===0)toast(`Restaurando… ${n} de ${falta.length}`,1500)}
   toast(f?`Restaurados ${n}; ${f} não puderam ser gravados. Tente de novo.`:`${n} registros restaurados do Supabase`,4500);
 }
 async function iniciarBackup(){if(window.CENTRAL)return;
@@ -1733,7 +1745,7 @@ function renderLixeira(){const el=$("#lixeira");
 $("#lixeira").addEventListener("click",async e=>{const b=e.target.closest("[data-lxr]");if(!b)return;const x=lixVis[+b.dataset.lxr],ref=x&&refDe(x.colecao);
   if(!ref||!x.dados){toast("Este item não pode ser restaurado nesta tela");return}
   b.disabled=true;
-  try{await ref.doc(x.id).set(x.dados);lixItens=lixItens.filter(y=>y!==x);renderLixeira();toast(`“${curtoT(tituloDe(x.dados))}” restaurado`,2500)}
+  const dd={...x.dados};delete dd._versao;try{await ref.doc(x.id).set(dd);lixItens=lixItens.filter(y=>y!==x);renderLixeira();toast(`“${curtoT(tituloDe(x.dados))}” restaurado`,2500)}
   catch(err){b.disabled=false;erroGravar(err,"o item")}});
 let verCtx=null;
 async function abrirVersoes(colecao,id,titulo,aoRestaurar){if(!hist||!id)return;
@@ -1747,7 +1759,7 @@ function renderVersoes(){const it=verCtx.itens;
     return `<div class="vi"><div><span><b>${OPS_H[v.operacao]||esc(v.operacao)}</b> · ${fmtDT(v.em)}${q?" · "+esc(q):""}${atual?' <span class="vatual">atual</span>':""}</span><small>${esc(curtoT(tituloDe(v.dados)))}${mud.length?" · mudou: "+esc(mud.join(", ")):""}</small></div>${!atual&&podeEscrever&&v.dados&&v.operacao!=="excluir"?`<button class="btn sm" type="button" data-vr="${i}">Restaurar esta</button>`:""}</div>`}).join("")}
 $("#vLista").addEventListener("click",async e=>{const b=e.target.closest("[data-vr]");if(!b||!verCtx?.itens)return;const ctx=verCtx,v=ctx.itens[+b.dataset.vr],ref=refDe(ctx.colecao);if(!v||!ref)return;
   if(!await confirmar(`Voltar para a versão de ${fmtDT(v.em)}?\n\nA versão atual continua guardada aqui no histórico.`,"Restaurar"))return;
-  const d={...v.dados,atualizadoEm:new Date().toISOString()};if(d.tipo==="pagina")d.editadoPor=meuId||null;
+  const d={...v.dados,atualizadoEm:new Date().toISOString()};delete d._versao;if(d.tipo==="pagina")d.editadoPor=meuId||null;
   b.disabled=true;
   try{await ref.doc(ctx.id).set(d);$("#dlgV").close();toast("Versão restaurada",2500);ctx.aoRestaurar?.()}catch(err){b.disabled=false;erroGravar(err,"a versão")}});
 $("#vFechar").addEventListener("click",()=>$("#dlgV").close());

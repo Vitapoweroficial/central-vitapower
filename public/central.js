@@ -186,6 +186,12 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && ouvintes.size) recarregarTudo(); });
 
+  // Outra pessoa salvou o item depois que este app o leu (migração 005): o app pergunta o que fazer.
+  const conflito = (e) => {
+    const m = /conflito:(\d+):([0-9a-f-]*)/.exec(String(e?.message || e || ""));
+    return m && Object.assign(new Error("Outra pessoa salvou este item enquanto você editava."), { code: "conflito", versao: +m[1], por: m[2] || null });
+  };
+
   function colecao(nome) {
     const c = nomeColecao(nome);
     if (!TIMES.includes(c) && c !== "pessoal:" + uid) throw new Error("coleção desconhecida: " + nome);
@@ -195,10 +201,10 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
           async set(dados) {
             if (await relacional()) {
               const { data, error } = await sb.rpc("central_gravar", { p_colecao: c, p_id: id, p_dados: dados });
-              if (error) throw error;
+              if (error) throw conflito(error) || error;
               ouvintes.forEach((_, outra) => { if (outra !== c) aplicar(outra, id, null); });
               aplicar(c, id, data);
-              return;
+              return data;
             }
             const { error } = await sb.from("central_docs").upsert({ colecao: c, doc_id: id, dados });
             if (error) throw error;
