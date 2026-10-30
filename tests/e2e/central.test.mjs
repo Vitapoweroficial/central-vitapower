@@ -156,3 +156,41 @@ test("Celular (iPhone): lixeira abre pelo menu e restaura", async () => {
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Edição simultânea: salvar por cima da mudança de outra pessoa pergunta antes", async () => {
+  const { page, ctx, erros } = await abrir();
+  await criarRapida(page, "Pedido de frascos");
+  const id = tarefa(await estado(page), "Pedido de frascos").doc_id;
+
+  // abro a tarefa, a colega muda a prioridade enquanto eu edito, e eu salvo: o app pergunta
+  await page.locator("#board .card", { hasText: "Pedido de frascos" }).click();
+  await page.fill("#tDesc", "minha anotação");
+  await page.evaluate((id) => window.__fakeOutraPessoa("tarefas", id, { prioridade: "alta" }), id);
+  await page.click("#tSalvar");
+  await page.locator("#cfDlg[open]").waitFor();
+  assert.match(await page.locator("#cfDlg .cfm").innerText(), /enquanto você editava/);
+  // cancelar mantém a versão da colega
+  await page.click('#cfDlg [data-r="0"]');
+  await page.locator("#dlgT").waitFor({ state: "hidden" });
+  let d = tarefa(await estado(page), "Pedido de frascos").dados;
+  assert.equal(d.prioridade, "alta");
+  assert.equal(d.descricao ?? "", "");
+
+  // de novo, mas agora escolho salvar a minha por cima
+  await page.locator("#board .card", { hasText: "Pedido de frascos" }).click();
+  await page.fill("#tDesc", "minha anotação");
+  await page.evaluate((id) => window.__fakeOutraPessoa("tarefas", id, { prioridade: "baixa" }), id);
+  await page.click("#tSalvar");
+  await page.click('#cfDlg [data-r="1"]');
+  await page.locator("#dlgT").waitFor({ state: "hidden" });
+  d = tarefa(await estado(page), "Pedido de frascos").dados;
+  assert.equal(d.descricao, "minha anotação");
+
+  // mudança feita a partir do quadro já atualizado não pergunta nada
+  await page.evaluate((id) => window.__fakeOutraPessoa("tarefas", id, { prioridade: "media" }), id);
+  await page.locator("#board .card", { hasText: "Pedido de frascos" }).dragTo(page.locator('#board section.col[data-col="fazendo"]'));
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.titulo === "Pedido de frascos" && d.dados.status === "fazendo"));
+  assert.equal(await page.locator("#cfDlg[open]").count(), 0);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});

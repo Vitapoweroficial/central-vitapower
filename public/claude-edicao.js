@@ -61,6 +61,11 @@
     })();
     return busca;
   }
+  // Outra pessoa salvou o item depois que este app o leu (migração 005): o app pergunta o que fazer.
+  const conflito = (e) => {
+    const m = /conflito:(\d+):([0-9a-f-]*)/.exec(String(e?.message || "") + " " + (typeof e === "string" ? e : ""));
+    return m && Object.assign(new Error("Outra pessoa salvou este item enquanto você editava."), { code: "conflito", versao: +m[1], por: m[2] || null });
+  };
   function colecao(nome) {
     const c = nomeColecao(nome);
     return {
@@ -68,10 +73,12 @@
         return {
           async set(d) {
             if (await relacional()) {
-              const r = await sql(`select public.central_gravar(${lit(c)}, ${lit(id)}, ${lit(JSON.stringify(d))}::jsonb) as dados`);
+              let r;
+              try { r = await sql(`select public.central_gravar(${lit(c)}, ${lit(id)}, ${lit(JSON.stringify(d))}::jsonb) as dados`); }
+              catch (e) { throw conflito(e) || e; }
               ouvintes.forEach((_, outra) => { if (outra !== c) local(outra, id, null); });
               local(c, id, r[0]?.dados ?? d);
-              return;
+              return r[0]?.dados;
             }
             await sql(`insert into public.central_docs (colecao, doc_id, dados) values (${lit(c)}, ${lit(id)}, ${lit(JSON.stringify(d))}::jsonb) on conflict (colecao, doc_id) do update set dados = excluded.dados`);
             local(c, id, d);

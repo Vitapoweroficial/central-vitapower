@@ -13,7 +13,7 @@
   const k = (c, id) => c + "\u0000" + id;
   const ouvintes = new Map();
   function registrar(c, id, op, dados) {
-    est.hist.push({ n: ++est.seq, colecao: c, doc_id: id, operacao: op, dados, em: new Date(Date.now() + est.seq).toISOString(), por: UID });
+    est.hist.push({ n: ++est.seq, colecao: c, doc_id: id, operacao: op, dados: JSON.parse(JSON.stringify(dados)), em: new Date(Date.now() + est.seq).toISOString(), por: UID });
   }
   function emitir(c) {
     const docs = Object.values(est.docs).filter((d) => d.colecao === c).map((d) => ({ id: d.doc_id, exists: true, data: () => JSON.parse(JSON.stringify(d.dados)) }));
@@ -27,10 +27,18 @@
           async set(dados) {
             const ant = est.docs[k(c, id)];
             dados = JSON.parse(JSON.stringify(dados));
+            // como a migração 005: versão velha é recusada; sem versão (ou item novo) passa
+            const v = dados._versao; delete dados._versao;
+            if (ant && typeof v === "number" && v !== ant.dados._versao)
+              throw Object.assign(new Error("conflito"), { code: "conflito", versao: ant.dados._versao, por: ant.por || null });
+            const semV = (d) => { const x = { ...d }; delete x._versao; return x; };
+            const mudou = !ant || JSON.stringify(semV(ant.dados)) !== JSON.stringify(dados);
             if (!ant) registrar(c, id, "criar", dados);
-            else if (JSON.stringify(ant.dados) !== JSON.stringify(dados)) registrar(c, id, "editar", dados);
-            est.docs[k(c, id)] = { colecao: c, doc_id: id, dados };
+            else if (mudou) registrar(c, id, "editar", dados);
+            dados._versao = !ant ? 1 : ant.dados._versao + (mudou ? 1 : 0);
+            est.docs[k(c, id)] = { colecao: c, doc_id: id, dados, por: UID };
             salvar(); emitir(c);
+            return JSON.parse(JSON.stringify(dados));
           },
           async delete() {
             const ant = est.docs[k(c, id)];
@@ -49,6 +57,13 @@
       },
     };
   }
+  // simula outra pessoa salvando o item (para os testes de edição simultânea)
+  window.__fakeOutraPessoa = (c, id, patch, por = "bbbbbbbb-0000-0000-0000-000000000002") => {
+    const ant = est.docs[k(c, id)];
+    const dados = { ...ant.dados, ...patch, _versao: ant.dados._versao + 1 };
+    est.docs[k(c, id)] = { colecao: c, doc_id: id, dados, por };
+    salvar(); emitir(c);
+  };
   const app = (c) => (c.startsWith("pessoal:") ? "pessoal" : c);
   const banco = (c) => (c === "pessoal" ? "pessoal:" + UID : c);
   const historico = {
