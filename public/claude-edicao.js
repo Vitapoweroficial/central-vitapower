@@ -133,6 +133,22 @@
   };
   let temHistorico = null;
 
+  /* ---------- notificações do Andrew (sem tempo real aqui: confere a cada 30 s) ---------- */
+  const avisos = {
+    async listar() {
+      return sql(`select id, tipo, colecao, doc_id, titulo, trecho, por::text as por, em, lida_em from public.central_notificacoes where usuario = ${lit(DONO)}::uuid order by id desc limit 60`);
+    },
+    async marcarLidas(ids) {
+      const so = ids && ids.length ? ` and id in (${ids.map((n) => +n).filter(Number.isFinite).join(",") || "0"})` : "";
+      await sql(`update public.central_notificacoes set lida_em = now() where usuario = ${lit(DONO)}::uuid and lida_em is null${so} returning id`);
+    },
+    ouvir(cb) {
+      const t = setInterval(() => { if (document.visibilityState === "visible") cb(); }, 30000);
+      return () => clearInterval(t);
+    },
+  };
+  let temAvisos = null;
+
   let pronto = null;
   function iniciar() {
     if (pronto) return pronto;
@@ -172,6 +188,11 @@
       try { await iniciar(); } catch (e) { return null; }
       if (temHistorico === null) temHistorico = await sql("select to_regclass('public.central_docs_historico') is not null as ok").then((r) => !!r[0]?.ok, () => false);
       return temHistorico ? historico : null;
+    }
+    if (nome === "avisos") {
+      try { await iniciar(); } catch (e) { return null; }
+      if (temAvisos === null) temAvisos = await sql("select to_regclass('public.central_notificacoes') is not null as ok").then((r) => !!r[0]?.ok, () => false);
+      return temAvisos ? avisos : null;
     }
     if (nome === "mcp") return null; // a cópia de segurança antiga não é mais necessária: os dados já estão no Supabase
     return window.claude?.use?.(nome);

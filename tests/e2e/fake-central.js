@@ -92,5 +92,17 @@
     },
   };
   if (cfg.historico !== false) servicos.historico = historico;
+  // notificações: os testes criam avisos com __fakeAviso (as regras de quem recebe são testadas no banco, tests/db)
+  est.avisos = est.avisos || [];
+  const ouvemAvisos = new Set();
+  window.__fakeAviso = (n) => {
+    est.avisos.unshift({ id: est.avisos.length + 1, em: new Date().toISOString(), lida_em: null, por: "bbbbbbbb-0000-0000-0000-000000000002", trecho: null, ...n });
+    ouvemAvisos.forEach((cb) => cb());
+  };
+  if (cfg.avisos !== false) servicos.avisos = {
+    async listar() { return JSON.parse(JSON.stringify(est.avisos)); },
+    async marcarLidas(ids) { est.avisos.forEach((n) => { if (!n.lida_em && (!ids || ids.includes(n.id))) n.lida_em = new Date().toISOString(); }); },
+    ouvir(cb) { ouvemAvisos.add(cb); return () => ouvemAvisos.delete(cb); },
+  };
   window.claude = { use: async (n) => servicos[n] || null };
 })();

@@ -302,6 +302,33 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
     return temHistorico;
   }
 
+  /* ---------- notificações (tabela central_notificacoes, gravada pelo banco; migração 008) ---------- */
+  const COLS_AVISO = "id,tipo,colecao,doc_id,titulo,trecho,por,em,lida_em";
+  const avisos = {
+    async listar() {
+      const { data, error } = await sb.from("central_notificacoes").select(COLS_AVISO).order("id", { ascending: false }).limit(60);
+      if (error) throw error;
+      return data;
+    },
+    async marcarLidas(ids) {
+      const { error } = await sb.rpc("central_marcar_lidas", { p_ids: ids && ids.length ? ids : null });
+      if (error) throw error;
+    },
+    // chama cb a cada aviso novo ou marcado como lido (o banco só manda os avisos de quem está logado)
+    ouvir(cb) {
+      const ch = sb.channel("central-avisos").on("postgres_changes", { event: "*", schema: "public", table: "central_notificacoes", filter: "usuario=eq." + uid }, () => cb()).subscribe();
+      return () => sb.removeChannel(ch);
+    },
+  };
+  let temAvisos = null;
+  async function avisosAtivo() {
+    if (temAvisos === null) {
+      const { error } = await sb.from("central_notificacoes").select("id").limit(1);
+      temAvisos = !error;
+    }
+    return temAvisos;
+  }
+
   /* ---------- a interface que o app usa ---------- */
   const servicos = {
     db: { collection: colecao },
@@ -319,6 +346,7 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
     },
     sample: { json: assistente, limits: async () => ({ maxPromptBytes: 262144 }) },
     historico,
+    avisos,
   };
   window.claude = {
     async use(nome) {
@@ -326,6 +354,7 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
       await pronto;
       if (nome === "sample" && !(await assistenteAtivo())) return null;
       if (nome === "historico" && !(await historicoAtivo())) return null;
+      if (nome === "avisos" && !(await avisosAtivo())) return null;
       return servicos[nome];
     },
   };
