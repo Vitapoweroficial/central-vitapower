@@ -294,6 +294,10 @@ input,textarea,select{font:inherit;color:var(--fg);background:var(--surface);bor
 .kpi.bad{border-color:color-mix(in srgb,var(--danger) 45%,var(--line))}.kpi.bad .kv{color:var(--danger)}
 .kpi.good .kv{color:var(--ok)}
 .pgr{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:10px}
+.pbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ch .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.ch .pt{stroke:var(--surface);stroke-width:2}
+.mini td.ruim{color:var(--danger)}.mini td.bom{color:var(--ok,inherit)}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:10px;min-width:0;align-content:start}
 .panel h3{font-family:var(--f-display);font-size:16px;margin:0}
 .panel .ph{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
@@ -1197,9 +1201,48 @@ function tabProjetos(){
 function listaTar(tit,l,dica,vazio){
   return `<div class="panel"><div class="ph"><h3>${tit}</h3><span class="hint">${dica}</span></div>${l.length?`<table class="mini"><tbody>${l.map(t=>{const sp=situPrazo(t),rn=t._priv?"Você":nomeResp(t)||"—";return `<tr data-id="${esc(t.id)}"><td>${esc(t.titulo)}${projDe(t.projetoId)?`<br><span class="pj" style="--pc:var(--${projDe(t.projetoId).cor||"p1"})"><i></i><span>${esc(projDe(t.projetoId).nome)}</span></span>`:""}</td><td>${esc(rn)}</td><td class="r">${sp?`<span class="due ${sp.c}">${esc(sp.tx)}</span>`:""}</td></tr>`}).join("")}</tbody></table>`:`<div class="empty">${vazio}</div>`}</div>`;
 }
+/* ---------- métricas de entrega ---------- */
+const PERIODOS={30:"30 dias",90:"90 dias",180:"6 meses"};let pPer=+lsGet("painel-periodo",30)||30;
+const diaConc=t=>(t.concluidoEm||"").slice(0,10);
+const leadDias=t=>t.criadoEm&&t.concluidoEm?Math.max(0,difDias(diaConc(t),t.criadoEm.slice(0,10))):null;
+const media=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const fmtD=v=>v==null?"—":(Math.round(v*10)/10).toLocaleString("pt-BR")+" d";
+// linha semanal (12 semanas): % entregue no prazo ou tempo médio da criação à conclusão
+function grafTendencia(l,W,tipo){
+  const w0=inicioSemana(hoje()),sem=[];for(let i=11;i>=0;i--){const ini=addDias(w0,-7*i);sem.push({ini,fim:addDias(ini,6)})}
+  const feitas=l.filter(t=>t.status==="feito"&&t.concluidoEm);
+  sem.forEach(s=>{const c=feitas.filter(t=>diaConc(t)>=s.ini&&diaConc(t)<=s.fim);
+    if(tipo==="prazo"){const cp=c.filter(t=>t.prazo),ok=cp.filter(t=>diaConc(t)<=t.prazo).length;s.v=cp.length?ok/cp.length*100:null;s.tip=cp.length?`${Math.round(s.v)}% no prazo|${ok} de ${cp.length} com prazo · semana de ${fmtData(s.ini)}`:`sem tarefas com prazo concluídas|semana de ${fmtData(s.ini)}`}
+    else{const ds=c.map(leadDias).filter(v=>v!=null);s.v=media(ds);s.tip=ds.length?`${fmtD(s.v)} em média|${ds.length} ${plural(ds.length,"concluída","concluídas")} · semana de ${fmtData(s.ini)}`:`nada concluído|semana de ${fmtData(s.ini)}`}});
+  const vs=sem.map(s=>s.v).filter(v=>v!=null),mx=tipo==="prazo"?100:niceMax(Math.max(1,...vs));
+  const H=W<480?170:190,pl=34,pb=24,pt=12,bw=(W-pl)/sem.length,y=v=>pt+(H-pt-pb)*(1-v/mx),cx=i=>pl+bw*i+bw/2,cor=tipo==="prazo"?"var(--s2)":"var(--s1)";
+  let g="";[0,mx/2,mx].forEach(v=>{g+=`<line class="gridl" x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${(Math.round(v*10)/10).toLocaleString("pt-BR")}${tipo==="prazo"?"%":""}</text>`});
+  let d="",seg=false;sem.forEach((s,i)=>{if(s.v==null){seg=false;return}d+=`${seg?"L":"M"}${cx(i)} ${y(s.v)} `;seg=true});
+  g+=`<path class="ln" d="${d.trim()}" stroke="${cor}"/>`;
+  sem.forEach((s,i)=>{g+=`<rect class="hit" x="${pl+bw*i}" y="${pt}" width="${bw}" height="${H-pt-pb}" fill="transparent" data-tip="${esc(s.tip)}"/>`;if(s.v!=null)g+=`<circle class="pt" cx="${cx(i)}" cy="${y(s.v)}" r="4" fill="${cor}" pointer-events="none"/>`;if(W>=480?i%2===1:i%3===2)g+=`<text x="${cx(i)}" y="${H-6}" text-anchor="middle">${fmtData(s.ini)}</text>`});
+  const tit=tipo==="prazo"?"Entregues no prazo, por semana":"Tempo para concluir, por semana",hint=tipo==="prazo"?"% das concluídas com prazo · 12 semanas":"dias da criação à conclusão · 12 semanas";
+  return `<div class="panel"><div class="ph"><h3>${tit}</h3><span class="hint">${hint}</span></div>${vs.length?`<svg class="ch" viewBox="0 0 ${W} ${H}" role="img" aria-label="${tit}">${g}</svg>`:`<div class="empty">Ainda não há tarefas concluídas nestas semanas.</div>`}</div>`}
+// tabela por pessoa ou por projeto: o que foi entregue no período e o que está aberto agora
+function tabDesempenho(l,desde,per,por){
+  const h=hoje(),m=new Map();
+  const chaveDe=t=>por==="pessoa"?(t._priv?(meuId||"eu"):chaveResp(t)):(projDe(t.projetoId)?t.projetoId:"");
+  const nomeDe_=t=>por==="pessoa"?(t._priv||chaveResp(t)===meuId?"Você":nomeChaveResp(t)):(projDe(t.projetoId)?.nome||"Sem projeto");
+  l.filter(t=>!t.arquivado||t.status==="feito").forEach(t=>{const k=chaveDe(t);if(!m.has(k))m.set(k,{k,n:nomeDe_(t),cor:por==="projeto"?projDe(t.projetoId)?.cor:null,feitas:[],ab:0,late:0});const r=m.get(k);
+    if(t.status==="feito"){if(diaConc(t)>=desde)r.feitas.push(t)}else{r.ab++;if(t.prazo&&t.prazo<h)r.late++}});
+  const ls=[...m.values()].filter(r=>r.feitas.length||r.ab).map(r=>{const cp=r.feitas.filter(t=>t.prazo),ok=cp.filter(t=>diaConc(t)<=t.prazo).length;return {...r,cp:cp.length,ok,pct:cp.length?ok/cp.length:null,lead:media(r.feitas.map(leadDias).filter(v=>v!=null))}})
+    .sort((a,b)=>b.feitas.length-a.feitas.length||b.ab-a.ab||a.n.localeCompare(b.n,"pt-BR"));
+  const tit=por==="pessoa"?"Desempenho por pessoa":"Desempenho por projeto";
+  return `<div class="panel"><div class="ph"><h3>${tit}</h3><span class="hint">entregas dos últimos ${per} dias · abertas agora</span></div>
+    ${ls.length?`<div style="overflow-x:auto"><table class="mini"><thead><tr><th>${por==="pessoa"?"Pessoa":"Projeto"}</th><th class="r">Concluídas</th><th class="r">No prazo</th><th class="r">Tempo médio</th><th class="r">Abertas</th><th class="r">Atrasadas</th></tr></thead><tbody>
+    ${ls.map(r=>`<tr ${por==="projeto"&&r.k?`data-p="${esc(r.k)}"`:""}><td>${por==="projeto"&&r.k?`<span class="pj" style="--pc:var(--${r.cor||"p1"})"><i></i><span>${esc(r.n)}</span></span>`:esc(r.n)}</td><td class="r">${r.feitas.length}</td><td class="r ${r.pct!=null&&r.pct<.7?"ruim":""}" title="${r.cp?`${r.ok} de ${r.cp} com prazo`:"nenhuma concluída com prazo"}">${r.pct==null?"—":pctTx(r.ok,r.cp)}</td><td class="r">${fmtD(r.lead)}</td><td class="r">${r.ab}</td><td class="r ${r.late?"ruim":""}">${r.late}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Nada para mostrar com esses filtros.</div>`}</div>`}
+function baixarCsv(l){const h=hoje(),q=v=>{const x=v==null?"":String(v);return /[";\n]/.test(x)?`"${x.replace(/"/g,'""')}"`:x};
+  const lin=[["Tarefa","Projeto","Responsável","Situação","Prioridade","Criada em","Início","Prazo","Concluída em","No prazo","Dias para concluir","Atrasada agora"]];
+  l.forEach(t=>{const f=t.status==="feito",c=diaConc(t);lin.push([t.titulo||"",projDe(t.projetoId)?.nome||"",t._priv?"Você (pessoal)":nomeResp(t)||"",COLS.find(x=>x.id===(t.status||"afazer"))?.nome||t.status,PRIO[t.prioridade]?.[0]||"",(t.criadoEm||"").slice(0,10),t.inicio||"",t.prazo||"",f?c:"",f&&t.prazo?(c<=t.prazo?"sim":"não"):"",f?leadDias(t)??"":"",!f&&t.prazo&&t.prazo<h?"sim":""])});
+  const blob=new Blob(["\ufeff"+lin.map(r=>r.map(q).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=`tarefas-${h}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function renderPainel(){
   const base=filtradas(true);renderChipsResp($("#chipsRespP"),base);
-  const l=fResp?base.filter(t=>chaveResp(t)===fResp):base,h=hoje(),d30=addDias(h,-30),s7=addDias(h,7);
+  const l=fResp?base.filter(t=>chaveResp(t)===fResp):base,h=hoje(),per=PERIODOS[pPer]?pPer:30,d30=addDias(h,-per),s7=addDias(h,7);
   const ab=l.filter(t=>t.status!=="feito"),late=ab.filter(t=>t.prazo&&t.prazo<h),prox=ab.filter(t=>t.prazo&&t.prazo>=h&&t.prazo<=s7);
   const c30=l.filter(t=>t.status==="feito"&&(t.concluidoEm||"").slice(0,10)>=d30),cp=c30.filter(t=>t.prazo),noPrazo=cp.filter(t=>(t.concluidoEm||"").slice(0,10)<=t.prazo);
   const leads=c30.filter(t=>t.criadoEm).map(t=>Math.max(0,difDias((t.concluidoEm||"").slice(0,10),t.criadoEm.slice(0,10)))),lead=leads.length?leads.reduce((a,b)=>a+b,0)/leads.length:null;
@@ -1208,22 +1251,29 @@ function renderPainel(){
   const pa=projetos.filter(p=>(p.status||"ativo")==="ativo"&&(!fProj||fProj===p.id)),pr=pa.filter(p=>{const s=saudeProj(p,statsProj(p))[0];return s==="atras"||s==="risco"});
   const K=(lbl,v,sub,cls,tip)=>`<div class="kpi ${cls||""}" ${tip?`title="${esc(tip)}"`:""}><span class="kl">${lbl}</span><span class="kv">${v}</span><span class="ks">${sub||"&nbsp;"}</span></div>`;
   const filtroTx=[fProj?(fProj==="sem"?"sem projeto":projDe(fProj)?.nome):"",fPrio?"prioridade "+PRIO[fPrio][0].toLowerCase():"",fResp?l[0]&&nomeChaveResp(l[0]):"",busca?`“${busca}”`:""].filter(Boolean).join(" · ");
-  $("#painel").innerHTML=`${filtroTx?`<div class="notice">Mostrando: ${esc(filtroTx)}</div>`:""}
+  const Wg=Math.round(Math.min(640,Math.max(300,(($("#painel").clientWidth||640)>=860?($("#painel").clientWidth-10)/2:$("#painel").clientWidth)-30)));
+  $("#painel").innerHTML=`<div class="pbar"><div class="seg" role="group" aria-label="Período">${Object.entries(PERIODOS).map(([k,v])=>`<button type="button" data-per="${k}" class="${+k===per?"on":""}">${v}</button>`).join("")}</div><span class="lock">período das métricas de entrega</span><span style="flex:1"></span><button class="btn sm" type="button" id="pCsv" title="Baixa uma planilha com as tarefas deste filtro">⬇ Baixar planilha (CSV)</button></div>
+  ${filtroTx?`<div class="notice">Mostrando: ${esc(filtroTx)}</div>`:""}
   <div class="kgrid">
     ${K("Tarefas abertas",ab.length,`${ab.filter(t=>t.status==="fazendo").length} fazendo agora`)}
     ${K("Atrasadas",late.length,ab.length?`${pctTx(late.length,ab.length)} das abertas`:"",late.length?"bad":"")}
     ${K("Vencem em 7 dias",prox.length,prox.filter(t=>t.prazo===h).length?`${prox.filter(t=>t.prazo===h).length} ${prox.filter(t=>t.prazo===h).length===1?"vence":"vencem"} hoje`:"")}
-    ${K("Concluídas em 30 dias",c30.length,`${l.filter(t=>t.status==="feito"&&(t.concluidoEm||"").slice(0,10)>=addDias(h,-7)).length} nos últimos 7 dias`,c30.length?"good":"")}
-    ${K("Entregues no prazo",cp.length?pctTx(noPrazo.length,cp.length):"—",cp.length?`${noPrazo.length} de ${cp.length} com prazo (30 dias)`:"sem tarefas com prazo concluídas",cp.length&&noPrazo.length/cp.length<.7?"bad":cp.length?"good":"","Tarefas concluídas nos últimos 30 dias até a data do prazo")}
-    ${K("Tempo médio para concluir",lead==null?"—":(Math.round(lead*10)/10).toLocaleString("pt-BR")+" d",lead==null?"":"da criação à conclusão (30 dias)")}
+    ${K(`Concluídas em ${per} dias`,c30.length,`${l.filter(t=>t.status==="feito"&&(t.concluidoEm||"").slice(0,10)>=addDias(h,-7)).length} nos últimos 7 dias`,c30.length?"good":"")}
+    ${K("Entregues no prazo",cp.length?pctTx(noPrazo.length,cp.length):"—",cp.length?`${noPrazo.length} de ${cp.length} com prazo (${per} dias)`:"sem tarefas com prazo concluídas",cp.length&&noPrazo.length/cp.length<.7?"bad":cp.length?"good":"",`Tarefas concluídas nos últimos ${per} dias até a data do prazo`)}
+    ${K("Tempo médio para concluir",lead==null?"—":(Math.round(lead*10)/10).toLocaleString("pt-BR")+" d",lead==null?"":`da criação à conclusão (${per} dias)`)}
     ${K("Paradas aguardando",ag.length,ag7.length?`${ag7.length} há mais de 7 dias`:"",ag7.length?"bad":"")}
     ${K("Projetos ativos",pa.length,pr.length?`${pr.length} atrasados ou em risco`:"todos no prazo",pr.length?"bad":"")}
   </div>
-  <div class="pgr">${grafSemanas(l,Math.round(Math.min(640,Math.max(300,(($("#painel").clientWidth||640)>=860?($("#painel").clientWidth-10)/2:$("#painel").clientWidth)-30))))}${grafSituacao(ab)}</div>
+  <div class="pgr">${grafSemanas(l,Wg)}${grafSituacao(ab)}</div>
   <div class="pgr">${grafResp(ab)}${tabProjetos()}</div>
+  <div class="pgr">${grafTendencia(l,Wg,"prazo")}${grafTendencia(l,Wg,"tempo")}</div>
+  ${tabDesempenho(l,d30,per,"pessoa")}
+  ${tabDesempenho(l,d30,per,"projeto")}
   <div class="pgr">${listaTar("Atrasadas",ordenar(late.slice()).slice(0,8),late.length>8?`8 de ${late.length}, mais atrasadas primeiro`:"mais atrasadas primeiro","Nenhuma tarefa atrasada.")}${listaTar("Próximos prazos",prox.slice().sort((a,b)=>a.prazo.localeCompare(b.prazo)).slice(0,8),"próximos 7 dias","Nada vence nos próximos 7 dias.")}</div>`;
 }
-$("#painel").addEventListener("click",e=>{const r=e.target.closest("tr[data-id]");if(r){const t=todas().find(x=>x.id===r.dataset.id);if(t)abrirTarefa(t);return}
+$("#painel").addEventListener("click",e=>{const pb=e.target.closest("[data-per]");if(pb){pPer=+pb.dataset.per;lsSet("painel-periodo",pPer);render();return}
+  if(e.target.closest("#pCsv")){const base=filtradas(true);baixarCsv(fResp?base.filter(t=>chaveResp(t)===fResp):base);return}
+  const r=e.target.closest("tr[data-id]");if(r){const t=todas().find(x=>x.id===r.dataset.id);if(t)abrirTarefa(t);return}
   const p=e.target.closest("tr[data-p]");if(p)ir("projeto",{proj:p.dataset.p})});
 /* dica ao passar o mouse nos gráficos */
 (()=>{const tip=$("#tip");let alvo=null;
