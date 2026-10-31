@@ -1330,10 +1330,10 @@ function buscarTudo(qq){const q=chave(qq);if(q.length<2)return[];const out=[],te
   todas().forEach(t=>{let onde=null;
     if(tem(t.titulo))onde=["",t.titulo];else if(tem(t.descricao))onde=["Detalhes",t.descricao];
     else{const c=(t.comentarios||[]).find(c=>tem(c.texto));if(c)onde=["Comentário",c.texto];else{const k=(t.checklist||[]).find(k=>tem(k.t));if(k)onde=["Checklist",k.t];else{const l=(t.links||[]).find(l=>tem(l.nome)||tem(l.url));if(l)onde=["Link",l.nome||l.url]}}}
-    if(onde)out.push({g:"Tarefas",ic:t.status==="feito"?"✅":"☐",tit:t.titulo||"(sem título)",sub:(projDe(t.projetoId)?.nome?projDe(t.projetoId).nome+" · ":"")+(onde[0]?onde[0]+": ":"")+"",tx:onde[0]?onde[1]:"",abrir:()=>abrirTarefa(t),peso:onde[0]?1:0})});
-  projetos.forEach(p=>{if(tem(p.nome)||tem(p.descricao))out.push({g:"Projetos",ic:"🗂️",tit:p.nome,sub:"",tx:tem(p.nome)?"":p.descricao,abrir:()=>ir("projeto",{proj:p.id}),peso:tem(p.nome)?0:1})});
-  [["t",pagT],["p",pagP]].forEach(([esp,ps])=>ps.forEach(g=>{const c=textoDe(g.conteudo);if(tem(g.titulo)||tem(c))out.push({g:"Páginas",ic:g.icone||"📄",tit:g.titulo||"Sem título",sub:esp==="p"?"🔒 Pessoal · ":"",tx:tem(g.titulo)?"":c,abrir:()=>ir("pagina",{pg:{id:g.id,esp}}),peso:tem(g.titulo)?0:1})}));
-  pessoasOrg.forEach(u=>{if(u.id&&tem(u.name)){const n=compart.filter(t=>t.respId===u.id&&t.status!=="feito").length;out.push({g:"Pessoas",ic:"👤",tit:u.name,sub:`${n} ${plural(n,"tarefa aberta","tarefas abertas")} · `,tx:"",abrir:()=>{fResp=u.id;ir("time").then(()=>{fResp=u.id;render()})},peso:0})}});
+    if(onde)out.push({id:t.id,g:"Tarefas",ic:t.status==="feito"?"✅":"☐",tit:t.titulo||"(sem título)",sub:(projDe(t.projetoId)?.nome?projDe(t.projetoId).nome+" · ":"")+(onde[0]?onde[0]+": ":"")+"",tx:onde[0]?onde[1]:"",abrir:()=>abrirTarefa(t),peso:onde[0]?1:0})});
+  projetos.forEach(p=>{if(tem(p.nome)||tem(p.descricao))out.push({id:p.id,g:"Projetos",ic:"🗂️",tit:p.nome,sub:"",tx:tem(p.nome)?"":p.descricao,abrir:()=>ir("projeto",{proj:p.id}),peso:tem(p.nome)?0:1})});
+  [["t",pagT],["p",pagP]].forEach(([esp,ps])=>ps.forEach(g=>{const c=textoDe(g.conteudo);if(tem(g.titulo)||tem(c))out.push({id:g.id,g:"Páginas",ic:g.icone||"📄",tit:g.titulo||"Sem título",sub:esp==="p"?"🔒 Pessoal · ":"",tx:tem(g.titulo)?"":c,abrir:()=>ir("pagina",{pg:{id:g.id,esp}}),peso:tem(g.titulo)?0:1})}));
+  pessoasOrg.forEach(u=>{if(u.id&&tem(u.name)){const n=compart.filter(t=>t.respId===u.id&&t.status!=="feito").length;out.push({id:u.id,g:"Pessoas",ic:"👤",tit:u.name,sub:`${n} ${plural(n,"tarefa aberta","tarefas abertas")} · `,tx:"",abrir:()=>{fResp=u.id;ir("time").then(()=>{fResp=u.id;render()})},peso:0})}});
   const ordem=["Tarefas","Projetos","Páginas","Pessoas"];
   return out.sort((a,b)=>ordem.indexOf(a.g)-ordem.indexOf(b.g)||a.peso-b.peso).filter((x,i,arr)=>arr.slice(0,i).filter(y=>y.g===x.g).length<12)}
 function renderBusca(){const q=$("#gbQ").value;gbItens=buscarTudo(q);gbSel=Math.min(gbSel,Math.max(0,gbItens.length-1));const qk=chave(q);let g="";
@@ -1512,15 +1512,18 @@ $("#linha").addEventListener("click",e=>{if(tlArrastou)return;const b=e.target.c
 /* ---------- carga de trabalho: pessoas × semanas ---------- */
 // Cada tarefa aberta conta em todas as semanas entre o início e o prazo (só prazo: a semana do prazo); atrasada conta na semana atual.
 let cgIni=null,cgMapa=new Map();
-function renderCarga(vis){
-  const el=$("#carga"),h=hoje(),atual=inicioSemana(h);if(!cgIni)cgIni=atual;const nS=8,sems=[...Array(nS)].map((_,i)=>addDias(cgIni,i*7)),lim=Math.max(1,+lsGet("carga-limite",5)||5);
-  const ab=vis.filter(t=>t.status!=="feito"&&!t.arquivado),pes=new Map();cgMapa=new Map();
+const limiteCarga=()=>Math.max(1,+lsGet("carga-limite",5)||5);
+function cargaDados(vis,ini,nS){
+  const h=hoje(),sems=[...Array(nS)].map((_,i)=>addDias(ini,i*7)),ab=vis.filter(t=>t.status!=="feito"&&!t.arquivado),pes=new Map(),mapa=new Map();
   const pessoa=t=>{const k=t._priv?(meuId||"eu"):chaveResp(t);if(!pes.has(k))pes.set(k,{k,n:k===meuId||t._priv?"Você":nomeChaveResp(t),c:Array(nS).fill(0),late:Array(nS).fill(0),sd:0,tot:0});return pes.get(k)};
-  const poe=(k,i,t)=>{const id=k+"|"+i;if(!cgMapa.has(id))cgMapa.set(id,[]);cgMapa.get(id).push(t)};
+  const poe=(k,i,t)=>{const id=k+"|"+i;if(!mapa.has(id))mapa.set(id,[]);mapa.get(id).push(t)};
   ab.forEach(t=>{const pp=pessoa(t);pp.tot++;let s=t.inicio||t.prazo,e=t.prazo||t.inicio;if(!s){pp.sd++;poe(pp.k,"sd",t);return}if(s>e)[s,e]=[e,s];
     const late=t.prazo&&t.prazo<h;if(e<h){s=e=h}else if(s<h&&late)s=h;
     sems.forEach((w,i)=>{const wf=addDias(w,6);if(s<=wf&&e>=w){pp.c[i]++;if(late)pp.late[i]++;poe(pp.k,i,t)}})});
   const ls=[...pes.values()].sort((a,b)=>(a.k==="sem")-(b.k==="sem")||Math.max(...b.c)-Math.max(...a.c)||a.n.localeCompare(b.n,"pt-BR"));
+  return {sems,ls,mapa}}
+function renderCarga(vis){
+  const el=$("#carga"),atual=inicioSemana(hoje());if(!cgIni)cgIni=atual;const nS=8,lim=limiteCarga(),{sems,ls,mapa}=cargaDados(vis,cgIni,nS);cgMapa=mapa;
   const cel=(pp,i)=>{const n=i==="sd"?pp.sd:pp.c[i],l=i==="sd"?0:pp.late[i];if(!n)return `<span class="cel zero">·</span>`;
     return `<button type="button" class="cel ${n>lim?"over":""}" style="--h:${Math.min(1,n/lim)}" data-cg="${esc(pp.k)}|${i}" title="${esc(pp.n)}: ${n} ${plural(n,"tarefa","tarefas")}${l?` (${l} ${plural(l,"atrasada","atrasadas")})`:""}${n>lim?" · acima do limite":""}">${n}${l?`<small>${l}!</small>`:""}</button>`};
   const sobre=ls.filter(pp=>pp.k!=="sem"&&pp.c.some(n=>n>lim));
@@ -2198,10 +2201,11 @@ const isoOk=v=>typeof v==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v)?v:null;
 function iaAbrir(texto){$("#ia").classList.add("on");$("#ia").setAttribute("aria-hidden","false");$("#app").classList.remove("aberta");if(!iaMsgs.children.length)iaBoasVindas();iaSugestoes();if(texto)$("#iaTexto").value=texto;setTimeout(()=>{const x=$("#iaTexto");x.focus();x.setSelectionRange(x.value.length,x.value.length)},60)}
 function iaFechar(){$("#ia").classList.remove("on");$("#ia").setAttribute("aria-hidden","true")}
 function iaBolha(quem,tx){const d=document.createElement("div");d.className="msg "+quem;d.textContent=tx;iaMsgs.appendChild(d);iaMsgs.scrollTop=iaMsgs.scrollHeight;return d}
-function iaBoasVindas(){iaBolha("bot","Oi! Eu leio suas tarefas e projetos e posso:\n- ler fotos, prints e PDFs (cotações, formulações, briefings) e transformar em página com tabela ou em projeto: arraste o arquivo para cá ou use o 📎\n- montar um projeto inteiro, com tarefas e prazos, a partir de uma frase\n- resumir a semana e apontar o que está atrasado ou parado\n- dizer o que priorizar hoje\n- reorganizar prazos e prioridades\nQuando eu sugerir mudanças, você revisa e clica em Aplicar.")}
+function iaBoasVindas(){iaBolha("bot","Oi! Eu leio suas tarefas e projetos e posso:\n- ler fotos, prints e PDFs (cotações, formulações, briefings) e transformar em página com tabela ou em projeto: arraste o arquivo para cá ou use o 📎\n- montar um projeto inteiro, com tarefas e prazos, a partir de uma frase\n- resumir a semana e apontar o que está atrasado ou parado\n- dizer o que priorizar hoje\n- reorganizar prazos e prioridades\n- ser o gestor de um projeto: vejo a linha do tempo e a carga da equipe, pergunto as datas de entrega e encaixo as tarefas no calendário, com responsáveis sugeridos (botão 🧭)\n- procurar em documentos, comentários e histórico, comentar e marcar pessoas com @, e pedir aprovação de documentos\nQuando eu sugerir mudanças, você revisa e clica em Aplicar.")}
 function iaSugestoes(){const p=vista==="projeto"?projDe(projAberto):null;
   const l=[["📋 Resumo da semana","Faça um resumo da minha semana: o que foi concluído, o que está atrasado, o que está parado aguardando e os riscos dos projetos."],["🎯 O que priorizar hoje?","O que eu devo priorizar hoje? Me dê uma lista curta e ordenada, com o motivo de cada item."],["🗓️ Reorganizar atrasadas","Proponha novos prazos realistas para as tarefas atrasadas, distribuindo ao longo das próximas duas semanas sem sobrecarregar nenhum dia."],["🚀 Montar um projeto",null]];
-  if(p)l.unshift([`🧩 Planejar “${p.nome}”`,`Analise o projeto “${p.nome}” (id ${p.id}) e proponha as tarefas que faltam para concluir as entregas no prazo, com datas escalonadas e prioridades.`]);
+  if(p)l.unshift([`🧭 Organizar “${p.nome}”`,`Seja o gestor do projeto “${p.nome}” (id ${p.id}). Veja a linha do tempo, os marcos, as dependências e a carga da equipe. Se faltar alguma data de entrega ou informação importante, me pergunte primeiro. Depois encaixe as tarefas no calendário com início e prazo, prioridades, dependências e responsáveis sugeridos, sem sobrecarregar ninguém, e acrescente o que faltar para cumprir as entregas.`]);
+  else l.unshift(["🧭 Organizar os projetos",`Seja o gestor dos projetos ativos. Veja a carga da equipe e as linhas do tempo, aponte o que está sem prazo, sem responsável, atrasado ou sobrecarregado, me pergunte as datas de entrega que faltarem e depois proponha um plano das próximas semanas com datas, prioridades e responsáveis.`]);
   $("#iaSug").innerHTML=l.map(([t,q],i)=>`<button type="button" class="chip" data-sug="${i}">${esc(t)}</button>`).join("");
   $("#iaSug").onclick=e=>{const b=e.target.closest("[data-sug]");if(!b)return;const q=l[+b.dataset.sug][1];if(q)iaEnviar(q);else{const x=$("#iaTexto");x.value="Crie o projeto de  com prazo em . Quebre em tarefas com prazos e prioridades.";x.focus();x.setSelectionRange(17,17)}}}
 function iaEstado(){
@@ -2209,17 +2213,53 @@ function iaEstado(){
   const ps=projetos.map(p=>{const s=statsProj(p);return {id:p.id,nome:p.nome,status:p.status||"ativo",inicio:p.inicio||null,prazo:p.prazo||null,saude:saudeProj(p,s)[1],tarefas:s.tot,concluidas:s.feito,atrasadas:s.late,entregas:(p.entregas||[]).map(e=>(e.ok?"[x] ":"[ ] ")+e.t)}});
   const ts=ordenar(ab.slice()).slice(0,180).map(t=>({id:t.id,titulo:t.titulo,status:t.status||"afazer",prioridade:t.prioridade||"media",inicio:t.inicio||null,prazo:t.prazo||null,projeto:t.projetoId||null,responsavel:t._priv?"eu (pessoal)":nomeResp(t)||null,aguardando:t.status==="aguardando"?(t.aguardando||""):undefined,checklist:(t.checklist||[]).length?`${t.checklist.filter(x=>x.ok).length}/${t.checklist.length}`:undefined,repete:REP[t.recorrencia]||undefined,subtarefa_de:t.paiId||undefined,depende_de:(t.dependeDe||[]).length?t.dependeDe:undefined,bloqueada:bloqueios(t).length?true:undefined,comentarios:(t.comentarios||[]).length?t.comentarios.slice(-3).map(c=>c.texto.slice(0,200)):undefined}));
   const fe=todas().filter(t=>t.status==="feito"&&(t.concluidoEm||"").slice(0,10)>=addDias(h,-7)).slice(0,40).map(t=>({titulo:t.titulo,projeto:t.projetoId||null,concluida:(t.concluidoEm||"").slice(0,10)}));
-  return {hoje:h,dia_semana:DSEM[new Date(h+"T12:00:00").getDay()],tela:vista,projeto_aberto:vista==="projeto"?projAberto:null,projetos:ps,tarefas_abertas:ts,total_abertas:ab.length,concluidas_ultimos_7_dias:fe}}
+  return {hoje:h,dia_semana:DSEM[new Date(h+"T12:00:00").getDay()],tela:vista,projeto_aberto:vista==="projeto"?projAberto:null,pessoas:iaPessoas(),limite_tarefas_por_pessoa_por_semana:limiteCarga(),projetos:ps,tarefas_abertas:ts,total_abertas:ab.length,concluidas_ultimos_7_dias:fe}}
+const iaPessoas=()=>{const m=new Map();if(meuId)m.set(meuId,(nomesU[meuId]||"Eu")+" (quem está usando)");pessoasOrg.forEach(p=>{if(p.id&&!m.has(p.id))m.set(p.id,p.name||"Alguém do time")});return [...m].map(([id,nome])=>({id,nome}))};
+/* ferramentas de consulta do assistente: ele chama quando precisa de mais do que o resumo (só leem; nada muda sem a revisão da pessoa) */
+const corta=(x,n)=>{x=String(x||"");return x.length>n?x.slice(0,n)+"…":x};
+function iaTarefaResumo(t){return {id:t.id,titulo:t.titulo,status:t.status||"afazer",prioridade:t.prioridade||"media",inicio:t.inicio||null,prazo:t.prazo||null,concluida_em:t.status==="feito"?(t.concluidoEm||"").slice(0,10)||null:undefined,responsavel:t._priv?"pessoal":nomeResp(t)||null,responsavel_id:t.respId||undefined,depende_de:(t.dependeDe||[]).length?t.dependeDe:undefined,subtarefa_de:t.paiId||undefined}}
+function iaFerramentas(){
+  const obj=(props,req)=>({type:"object",properties:props,required:req||[]});
+  return [
+    {name:"buscar",description:"Procura um texto em tarefas (título, detalhes, comentários, checklist), projetos, páginas/documentos e pessoas. Retorna até 25 resultados com tipo, id e trecho.",inputSchema:obj({texto:{type:"string"}},["texto"]),
+      execute:({texto})=>buscarTudo(String(texto||"")).slice(0,25).map(r=>({tipo:r.g,id:r.id,titulo:r.tit,onde:corta((r.sub||"")+(r.tx||""),160)}))},
+    {name:"ver_tarefa",description:"Detalhes completos de uma tarefa: descrição, checklist, comentários, histórico de situação, dependências e quem depende dela.",inputSchema:obj({id:{type:"string"}},["id"]),
+      execute:({id})=>{const t=todas().find(x=>x.id===id);if(!t)return {erro:"tarefa não encontrada"};
+        return {...iaTarefaResumo(t),projeto:projDe(t.projetoId)?.nome||null,descricao:corta(t.descricao,3000),checklist:(t.checklist||[]).map(x=>(x.ok?"[x] ":"[ ] ")+x.t),
+          comentarios:(t.comentarios||[]).slice(-20).map(c=>({por:c.por?nomeDe(c.por):"",em:(c.em||"").slice(0,10),texto:corta(c.texto,600)})),
+          historico:(t.historico||[]).slice(-10).map(x=>({de:x.de,para:x.para,em:(x.em||"").slice(0,10)})),dependentes:todas().filter(x=>(x.dependeDe||[]).includes(t.id)).map(x=>({id:x.id,titulo:x.titulo})),criada_em:(t.criadoEm||"").slice(0,10)}}},
+    {name:"ver_pagina",description:"Lê uma página/documento: título, estado (rascunho, revisão, aprovado), aprovações e o texto (até 6000 caracteres).",inputSchema:obj({id:{type:"string"}},["id"]),
+      execute:({id})=>{const g=pagT.find(x=>x.id===id)||pagP.find(x=>x.id===id);if(!g)return {erro:"página não encontrada"};
+        return {id:g.id,titulo:g.titulo,estado:estadoPg(g),aprovacoes:(g.aprovacoes||[]).map(a=>({por:nomeDe(a.por),status:a.status})),texto:corta(textoDe(g.conteudo),6000)}}},
+    {name:"ver_projeto",description:"Linha do tempo de um projeto: datas, marcos (entregas com data) e TODAS as tarefas, abertas e concluídas, com início, prazo, responsável, prioridade e dependências.",inputSchema:obj({id:{type:"string"}},["id"]),
+      execute:({id})=>{const p=projDe(id);if(!p)return {erro:"projeto não encontrado"};
+        return {id:p.id,nome:p.nome,descricao:corta(p.descricao,1500),status:p.status||"ativo",inicio:p.inicio||null,prazo:p.prazo||null,marcos:(p.entregas||[]).map(e=>({texto:e.t,data:e.data||null,feito:!!e.ok})),tarefas:todas().filter(t=>t.projetoId===p.id&&!t.arquivado).map(iaTarefaResumo)}}},
+    {name:"carga_equipe",description:"Quantas tarefas abertas cada pessoa tem em cada semana (a partir desta semana), contando todas as semanas entre início e prazo; atrasadas contam na semana atual. Use antes de distribuir datas ou sugerir responsáveis.",inputSchema:obj({semanas:{type:"integer",minimum:1,maximum:12}}),
+      execute:({semanas})=>{const n=Math.min(12,Math.max(1,+semanas||6)),{sems,ls}=cargaDados(todas().filter(t=>!t._priv),inicioSemana(hoje()),n);
+        return {limite_por_semana:limiteCarga(),semanas:sems,pessoas:ls.map(r=>({id:r.k==="sem"?null:r.k,nome:r.n,por_semana:r.c,atrasadas_por_semana:r.late,sem_data:r.sd,abertas:r.tot}))}}},
+    {name:"historico_pessoa",description:"O que uma pessoa já entregou (últimas 20 tarefas concluídas, com projeto e se foi no prazo) e quantas tem abertas. Use para sugerir quem deve ficar com uma tarefa.",inputSchema:obj({id:{type:"string"}},["id"]),
+      execute:({id})=>{const ts=todas().filter(t=>!t._priv&&t.respId===id),f=ts.filter(t=>t.status==="feito").sort((a,b)=>(b.concluidoEm||"").localeCompare(a.concluidoEm||""));
+        const cp=f.filter(t=>t.prazo),ok=cp.filter(t=>(t.concluidoEm||"").slice(0,10)<=t.prazo).length;
+        return {pessoa:nomeDe(id),abertas:ts.length-f.length,concluidas:f.length,no_prazo:cp.length?`${ok} de ${cp.length}`:null,ultimas:f.slice(0,20).map(t=>({titulo:t.titulo,projeto:projDe(t.projetoId)?.nome||null,concluida:(t.concluidoEm||"").slice(0,10),prazo:t.prazo||null}))}}}]}
 function iaRegras(){return `Você é o assistente do app de tarefas e projetos da VitaPower, empresa brasileira de suplementos e nutrição. Responda sempre em português do Brasil, de forma direta e prática.
-Você recebe o estado atual do app em JSON e o pedido da pessoa. Responda SOMENTE com um objeto JSON neste formato:
+Você recebe um resumo do estado atual do app em JSON e o pedido da pessoa. Quando houver ferramentas de consulta (buscar, ver_tarefa, ver_pagina, ver_projeto, carga_equipe, historico_pessoa), use-as para ver o que o resumo não traz: documentos, comentários, histórico, tarefas concluídas, a linha do tempo completa de um projeto e a carga de cada pessoa. Consulte só o necessário (poucas chamadas). No fim, responda SOMENTE com um objeto JSON neste formato:
 {"resposta": "texto para a pessoa; listas com linhas começando por '- '; sem markdown além disso", "acoes": []}
 "acoes" fica vazio quando o pedido é só uma pergunta ou análise. Quando o pedido pede para criar ou mudar algo, proponha as ações (a pessoa revisa antes de aplicar). Tipos de ação:
 {"tipo":"criar_projeto","ref":"P1","nome":"...","descricao":"...","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","entregas":["marco 1","marco 2"]}
 {"tipo":"criar_tarefa","titulo":"...","descricao":"...","projeto":"id de projeto existente, ou a ref de um criar_projeto desta resposta, ou null","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","status":"afazer|fazendo|aguardando","checklist":["passo"],"visibilidade":"eu|time"}
-{"tipo":"alterar_tarefa","id":"id de tarefa existente","mudancas":{"status":"afazer|fazendo|aguardando|feito","prazo":"AAAA-MM-DD ou null","inicio":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","titulo":"...","projeto":"id ou null"}}
+{"tipo":"alterar_tarefa","id":"id de tarefa existente","mudancas":{"status":"afazer|fazendo|aguardando|feito","prazo":"AAAA-MM-DD ou null","inicio":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","titulo":"...","projeto":"id ou null","responsavel":"id de uma pessoa da lista pessoas, ou null","depende_de":["ids de tarefas das quais esta depende (lista completa)"]}}
+{"tipo":"mover_datas","ids":["ids de tarefas"],"dias":número de dias corridos (negativo antecipa)}
+{"tipo":"comentar","tarefa":"id de tarefa","texto":"comentário; para marcar alguém escreva @Nome no texto","mencoes":["ids das pessoas marcadas"]}
+{"tipo":"alterar_projeto","id":"id de projeto","mudancas":{"inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","status":"ativo|pausado|concluido"},"marcos":[{"texto":"nome da entrega (igual ao existente para dar data a ele, ou novo)","data":"AAAA-MM-DD"}]}
+{"tipo":"pedir_aprovacao","pagina":"id de página do time","por":"id da pessoa que aprova"}
 {"tipo":"criar_pagina","titulo":"...","icone":"um emoji","espaco":"time|eu","html":"conteúdo em HTML simples, só com h2, h3, p, ul, ol, li, b, i, blockquote, hr e table/thead/tbody/tr/th/td"}
 Quando a pessoa enviar arquivos (fotos, prints ou PDF de cotação, formulação, briefing, nota ou planilha): leia tudo com atenção e transcreva fielmente, sem inventar nada; nomes, números, unidades, preços e datas exatamente como no arquivo; se algo estiver ilegível, escreva [ilegível]. Cotação, formulação, lista de itens ou qualquer tabela vira criar_pagina com a tabela completa em <table> (todas as linhas) e, antes dela, um resumo curto (fornecedor, data, validade, condições de pagamento, frete e totais quando existirem). Se o arquivo descrever um projeto, lançamento ou plano com etapas, proponha também criar_projeto com as tarefas. Na dúvida, crie a página. Use "espaco":"time" salvo se a pessoa pedir que seja só dela.
-Regras: use só ids que aparecem no estado; em "mudancas" inclua só o que muda; nunca exclua nada; datas a partir de hoje (${hoje()}), evitando sábados e domingos; ao montar um projeto, quebre em 6 a 15 tarefas concretas com prazos escalonados e coerentes com o prazo do projeto; use "visibilidade":"time" para tarefas de projetos do time; no máximo 30 ações; na "resposta" explique em poucas linhas o que propôs.`}
+Quando pedirem para organizar, planejar ou gerir projetos e tarefas, atue como gestor de projetos:
+1. Veja a situação: ver_projeto (linha do tempo, marcos, dependências), carga_equipe e, para escolher responsáveis, historico_pessoa.
+2. Se faltar informação essencial, PERGUNTE antes de propor (até 5 perguntas objetivas e numeradas, sem ações): data de entrega do projeto e dos marcos; o que tem data fixa ou precisa acontecer no mesmo dia; quanto tempo as tarefas maiores levam; quem não pode assumir algo. Não invente datas de entrega.
+3. Com as respostas, proponha o cronograma: cada tarefa com início e prazo em dias úteis; uma tarefa só começa depois que terminam as que ela depende (crie as dependências que faltam); prioridade alta e o caminho crítico primeiro; o que é independente roda em paralelo; cumpra as datas dos marcos e do projeto, deixando folga antes das entregas; ninguém acima do limite semanal de tarefas; sugira o responsável de cada tarefa pela carga e pelo que a pessoa já entregou; acrescente tarefas que faltam; ajuste prioridades.
+4. Na "resposta", explique em poucas linhas: o caminho crítico, as folgas, os riscos (o que não cabe no prazo e o que você sugere) e por que escolheu cada responsável.
+Regras: use só ids que aparecem no estado ou nas consultas; em "mudancas" inclua só o que muda; nunca exclua nada; datas a partir de hoje (${hoje()}), evitando sábados e domingos; ao montar um projeto, quebre em 6 a 15 tarefas concretas com prazos escalonados e coerentes com o prazo do projeto; use "visibilidade":"time" para tarefas de projetos do time; no máximo 60 ações; na "resposta" explique em poucas linhas o que propôs.`}
 function iaErro(e){const c=e&&e.code;
   return c==="not_configured"?"O assistente ainda não foi configurado no servidor (falta a chave do Claude na Vercel).":c==="not_granted"?"Sua conta não tem acesso ao assistente.":c==="rate_limited"?"Muitos pedidos seguidos ou limite de uso atingido. Tente de novo daqui a pouco.":c==="sampling_disabled"?"O Claude não está disponível para esta conta.":c==="session_expired"?"Sua sessão expirou. Recarregue a página e entre de novo.":c==="invalid_json"?"Não consegui organizar a resposta. Tente pedir de outro jeito, ou menos coisas de uma vez.":c==="prompt_too_large"?"Há dados demais para analisar de uma vez. Peça sobre um projeto específico.":c==="refused"?"Não posso ajudar com esse pedido.":"A conexão falhou. Tente de novo."}
 function iaSync(){$("#iaEnviar").hidden=iaOcupado;$("#iaParar").hidden=!iaOcupado;$("#iaTexto").disabled=iaOcupado;$("#iaSug").querySelectorAll("button").forEach(b=>b.disabled=iaOcupado)}
@@ -2229,8 +2269,9 @@ async function iaEnviar(txt){
   let imgs=[],extra="";
   if(anx.length){try{({imgs,extra}=await iaPrepArquivos(anx));pens.textContent="Pensando…"}catch(e){pens.remove();iaBolha("bot erro",(e&&e.message)||"Não consegui ler o arquivo.");iaOcupado=false;iaCtl=null;iaSync();return}}
   const turnos=[{role:"user",content:iaRegras()+"\n\nESTADO ATUAL DO APP:\n"+JSON.stringify(iaEstado())},...iaTurnos.slice(-8),{role:"user",content:txt+extra}];
-  try{const r=await iaSample.json(turnos,{cache:false,signal:iaCtl.signal,...(imgs.length?{images:imgs}:{})});
-    const resp=String((r&&r.resposta)||"").trim()||"Pronto.",acoes=Array.isArray(r&&r.acoes)?r.acoes.filter(a=>a&&typeof a==="object").slice(0,30):[];
+  const comFerr=!!iaLim?.tools,ferr=comFerr?iaFerramentas().map(f=>({...f,execute:a=>{pens.textContent={buscar:"Procurando…",ver_tarefa:"Lendo a tarefa…",ver_pagina:"Lendo o documento…",ver_projeto:"Vendo a linha do tempo…",carga_equipe:"Vendo a carga da equipe…",historico_pessoa:"Vendo o histórico…"}[f.name]||"Consultando…";try{return f.execute(a||{})}catch(e){return {erro:"não consegui consultar"}}}})):null;
+  try{const r=await iaSample.json(turnos,{cache:false,signal:iaCtl.signal,...(imgs.length?{images:imgs}:{}),...(ferr?{tools:ferr}:{})});
+    const resp=String((r&&r.resposta)||"").trim()||"Pronto.",acoes=Array.isArray(r&&r.acoes)?r.acoes.filter(a=>a&&typeof a==="object").slice(0,60):[];
     pens.remove();iaBolha("bot",resp);const n=acoes.length?iaPlano(acoes):0;
     iaTurnos.push({role:"user",content:txt+(anx.length?` (com o arquivo ${anx.map(f=>f.name).join(", ")})`:"")},{role:"assistant",content:resp+(n?`\n(Propus ${n} ações para a pessoa revisar.)`:"")});
   }catch(e){pens.remove();if(!(e&&e.code==="cancelled"))iaBolha("bot erro",iaErro(e))}
@@ -2243,7 +2284,15 @@ function iaDescr(a,refs){
   if(a.tipo==="alterar_tarefa"){const t=todas().find(x=>x.id===a.id);if(!t)return null;const m=a.mudancas||{},ps=[];
     if(COLS.some(c=>c.id===m.status))ps.push("→ "+COLS.find(c=>c.id===m.status).nome);if("prazo" in m)ps.push("prazo "+(isoOk(m.prazo)?fmtData(m.prazo):"sem prazo"));if("inicio" in m)ps.push("início "+(isoOk(m.inicio)?fmtData(m.inicio):"sem início"));
     if(PRIO[m.prioridade])ps.push("prioridade "+PRIO[m.prioridade][0].toLowerCase());if(m.titulo)ps.push(`novo nome “${m.titulo}”`);if("projeto" in m)ps.push("projeto "+(nomeP(m.projeto)||"nenhum"));
+    if("responsavel" in m)ps.push("responsável "+(m.responsavel?nomeDe(m.responsavel):"ninguém"));
+    if(Array.isArray(m.depende_de))ps.push(m.depende_de.length?"depende de "+m.depende_de.map(id=>`“${todas().find(x=>x.id===id)?.titulo||"?"}”`).join(", "):"sem dependências");
     if(!ps.length)return null;return ["✎","Alterar",`${t.titulo}: ${ps.join(", ")}`]}
+  if(a.tipo==="mover_datas"){const ts=(a.ids||[]).map(id=>todas().find(x=>x.id===id)).filter(Boolean),d=Math.round(+a.dias||0);if(!ts.length||!d)return null;
+    return ["📅",`${d>0?"Adiar":"Antecipar"} ${Math.abs(d)} ${plural(Math.abs(d),"dia","dias")}`,ts.slice(0,4).map(t=>t.titulo).join(", ")+(ts.length>4?` e mais ${ts.length-4}`:"")]}
+  if(a.tipo==="comentar"){const t=todas().find(x=>x.id===a.tarefa);if(!t||!a.texto)return null;return ["💬","Comentar em "+t.titulo,corta(a.texto,140)]}
+  if(a.tipo==="alterar_projeto"){const p=projDe(a.id);if(!p)return null;const m=a.mudancas||{},ps=[];if("prazo" in m)ps.push("prazo "+(isoOk(m.prazo)?fmtData(m.prazo):"sem prazo"));if("inicio" in m)ps.push("início "+(isoOk(m.inicio)?fmtData(m.inicio):"sem início"));if(PST[m.status])ps.push(PST[m.status].toLowerCase());
+    (Array.isArray(a.marcos)?a.marcos:[]).forEach(x=>{if(x&&x.texto&&isoOk(x.data))ps.push(`marco “${x.texto}” em ${fmtData(x.data)}`)});if(!ps.length)return null;return ["🗂️","Alterar projeto",`${p.nome}: ${ps.join(", ")}`]}
+  if(a.tipo==="pedir_aprovacao"){const g=pagT.find(x=>x.id===a.pagina);if(!g||!a.por)return null;return ["👀","Pedir aprovação",`${g.titulo||"Sem título"} → ${nomeDe(a.por)}`]}
   return null}
 function iaPlano(acoes){
   const refs={};acoes.forEach(a=>{if(a.tipo==="criar_projeto"&&a.ref)refs[a.ref]=String(a.nome||"novo projeto")});
@@ -2282,7 +2331,23 @@ async function iaAplicar(acoes){
       if(await salvarTarefa(t))ok++;else f++}
     else if(a.tipo==="alterar_tarefa"){const t=todas().find(x=>x.id===a.id);if(!t){f++;continue}const m=a.mudancas||{},p={};
       if(COLS.some(c=>c.id===m.status))p.status=m.status;if("prazo" in m)p.prazo=isoOk(m.prazo);if("inicio" in m)p.inicio=isoOk(m.inicio);if(PRIO[m.prioridade])p.prioridade=m.prioridade;if(m.titulo)p.titulo=String(m.titulo).slice(0,200);if("projeto" in m)p.projetoId=pid(m.projeto);
-      if(!Object.keys(p).length)continue;if(await alterarTarefa(t,p))ok++;else f++}}
+      if("responsavel" in m){const u=m.responsavel&&iaPessoas().some(x=>x.id===m.responsavel)?m.responsavel:null;if(!t._priv){p.respId=u;p.respNome=null}}
+      if(Array.isArray(m.depende_de))p.dependeDe=m.depende_de.filter(id=>id!==t.id&&todas().some(x=>x.id===id));
+      if(!Object.keys(p).length)continue;if(await alterarTarefa(t,p))ok++;else f++}
+    else if(a.tipo==="mover_datas"){const d=Math.round(+a.dias||0);if(!d)continue;
+      for(const id of (a.ids||[])){const t=todas().find(x=>x.id===id);if(!t||(!t.inicio&&!t.prazo)){f++;continue}
+        if(await alterarTarefa(t,{inicio:t.inicio?addDias(t.inicio,d):null,prazo:t.prazo?addDias(t.prazo,d):null}))ok++;else f++}}
+    else if(a.tipo==="comentar"){const t=todas().find(x=>x.id===a.tarefa);if(!t||!a.texto){f++;continue}const pes=new Set(iaPessoas().map(x=>x.id));
+      const mencoes=[...new Set((Array.isArray(a.mencoes)?a.mencoes:[]).filter(id=>pes.has(id)&&id!==meuId))];
+      const cs=[...(t.comentarios||[]),{id:novoId(),por:meuId||null,texto:String(a.texto).slice(0,4000),em:new Date().toISOString(),...(mencoes.length?{mencoes}:{})}].slice(-200);
+      if(await salvarTarefa({...t,comentarios:cs},t))ok++;else f++}
+    else if(a.tipo==="alterar_projeto"){const p=projDe(a.id);if(!p||!podeEditarProj(p)){f++;continue}const m=a.mudancas||{},n={...p};
+      if("inicio" in m)n.inicio=isoOk(m.inicio);if("prazo" in m)n.prazo=isoOk(m.prazo);if(PST[m.status])n.status=m.status;
+      const en=JSON.parse(JSON.stringify(p.entregas||[]));(Array.isArray(a.marcos)?a.marcos:[]).forEach(x=>{if(!x||!x.texto||!isoOk(x.data))return;const e=en.find(e=>chave(e.t)===chave(x.texto));if(e)e.data=isoOk(x.data);else en.push({id:novoId(),t:String(x.texto).slice(0,200),ok:false,data:isoOk(x.data)})});n.entregas=en;
+      if(await salvarProjeto(n))ok++;else f++}
+    else if(a.tipo==="pedir_aprovacao"){const g=pagT.find(x=>x.id===a.pagina);if(!g||!a.por||a.por===meuId||!iaPessoas().some(x=>x.id===a.por)){f++;continue}
+      const n={...g,estado:"revisao",aprovacoes:[...(g.aprovacoes||[]).filter(x=>x.status!=="pendente"||x.por!==a.por),{id:novoId(),por:a.por,status:"pendente",pedidoPor:meuId||null,pedidoEm:new Date().toISOString()}]};
+      if(await salvarPag(n,"t")===true)ok++;else f++}}
   toast(f?`${ok} aplicadas, ${f} com erro`:`${ok} ${plural(ok,"mudança aplicada","mudanças aplicadas")} ✓`,3000);return {ok,f}}
 /* anexos do assistente: fotos e prints vão como imagem; PDF vai como texto e, quando dá, as primeiras páginas como imagem */
 let iaAnexos=[],iaLim=null,dragN=0;

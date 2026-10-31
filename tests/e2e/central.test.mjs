@@ -29,9 +29,9 @@ before(async () => {
 });
 after(async () => { await browser?.close(); srv?.close(); });
 
-async function abrir({ historico = true, largura = 1280, semente = null } = {}) {
+async function abrir({ historico = true, largura = 1280, semente = null, ia = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: largura, height: 900 }, serviceWorkers: "block" });
-  await ctx.addInitScript((h) => { window.__FAKE__ = { historico: h }; localStorage.setItem("tarefas-vista", JSON.stringify("time")); localStorage.setItem("tarefas-modo", JSON.stringify("kanban")); }, historico);
+  await ctx.addInitScript((h) => { window.__FAKE__ = { historico: h.historico, ia: h.ia }; localStorage.setItem("tarefas-vista", JSON.stringify("time")); localStorage.setItem("tarefas-modo", JSON.stringify("kanban")); }, { historico, ia });
   // semente: dados iniciais do banco simulado (só na primeira carga da aba)
   if (semente) await ctx.addInitScript((s) => { if (!sessionStorage.getItem("fake-central")) sessionStorage.setItem("fake-central", s); }, JSON.stringify(semente));
   await ctx.route("**/vendor/supabase-*.js", (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
@@ -463,6 +463,69 @@ test("Métricas: período, tendência, desempenho por pessoa e projeto, planilha
   const txt = fs.readFileSync(await dl.path(), "utf8");
   assert.match(txt, /Tarefa;Projeto;Responsável/);
   assert.match(txt, /Atrasou;Linha Kids;.*;não;6;/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test("Assistente gestor: consulta a linha do tempo e a carga, pergunta, e propõe cronograma com responsável, dependência, marco e comentário", async () => {
+  const UID = "aaaaaaaa-0000-0000-0000-000000000001", BIA = "bbbbbbbb-0000-0000-0000-000000000002";
+  const doc = (colecao, doc_id, dados) => [colecao + "\u0000" + doc_id, { colecao, doc_id, dados: { _versao: 1, ...dados }, por: UID }];
+  const docs = Object.fromEntries([
+    doc("projetos", "pj", { nome: "Linha Kids", cor: "p2", status: "ativo", membros: [{ id: UID, papel: "dono" }], _papel: "dono", entregas: [{ id: "m1", t: "Rótulo aprovado", ok: false }] }),
+    doc("tarefas", "a", { tipo: "tarefa", titulo: "Fórmula", status: "afazer", projetoId: "pj", ordem: 1 }),
+    doc("tarefas", "b", { tipo: "tarefa", titulo: "Rótulo", status: "afazer", projetoId: "pj", ordem: 2 }),
+    doc("tarefas", "v", { tipo: "tarefa", titulo: "Rótulo do whey", status: "feito", respId: BIA, concluidoEm: "2026-09-10T10:00:00Z", prazo: "2026-09-12", ordem: 3 }),
+  ]);
+  const { page, ctx, erros } = await abrir({ semente: { docs, hist: [], seq: 0 }, ia: true });
+  await page.evaluate(([BIA]) => {
+    let rodada = 0;
+    window.__fakeIA = async (turnos, usar) => {
+      rodada++;
+      const pedido = turnos[turnos.length - 1].content;
+      if (rodada === 1) {
+        if (!/gestor do projeto “Linha Kids”/.test(pedido)) throw new Error("pedido inesperado: " + pedido);
+        await usar("ver_projeto", { id: "pj" });
+        await usar("carga_equipe", { semanas: 4 });
+        await usar("historico_pessoa", { id: BIA });
+        await usar("buscar", { texto: "rótulo" });
+        return { resposta: "Antes de montar: 1. Qual a data de entrega do rótulo aprovado?", acoes: [] };
+      }
+      return { resposta: "Cronograma montado.", acoes: [
+        { tipo: "alterar_projeto", id: "pj", mudancas: { prazo: "2030-03-29" }, marcos: [{ texto: "Rótulo aprovado", data: "2030-03-22" }] },
+        { tipo: "alterar_tarefa", id: "a", mudancas: { inicio: "2030-03-04", prazo: "2030-03-08", prioridade: "alta", responsavel: BIA } },
+        { tipo: "alterar_tarefa", id: "b", mudancas: { inicio: "2030-03-11", prazo: "2030-03-15", depende_de: ["a"] } },
+        { tipo: "comentar", tarefa: "a", texto: "@Bia Qualidade você fica com a fórmula", mencoes: [BIA] },
+        { tipo: "mover_datas", ids: ["b"], dias: 3 },
+      ] };
+    };
+  }, [BIA]);
+  await page.evaluate(() => ir("projeto", { proj: "pj" }));
+  await page.click("#btnIA");
+  await page.click("#iaSug button >> text=Organizar");
+  await page.locator("#iaMsgs .msg.bot", { hasText: "data de entrega do rótulo" }).waitFor();
+  const ch = await page.evaluate(() => window.__fakeIAChamadas);
+  assert.deepEqual(ch.map((c) => c.nome), ["ver_projeto", "carga_equipe", "historico_pessoa", "buscar"]);
+  assert.equal(ch[0].r.tarefas.length, 2);
+  assert.equal(ch[0].r.marcos[0].texto, "Rótulo aprovado");
+  assert.equal(ch[2].r.concluidas, 1);
+  assert.ok(ch[3].r.some((x) => x.id === "v"), "busca devolve o id");
+
+  await page.fill("#iaTexto", "Rótulo aprovado até 22/03/2030, projeto até 29/03.");
+  await page.press("#iaTexto", "Enter");
+  const plano = page.locator("#iaMsgs .plano").last();
+  await plano.waitFor();
+  assert.equal(await plano.locator("label").count(), 5);
+  await plano.locator('[data-pl="ok"]').click();
+  await plano.locator(".lock", { hasText: "5 mudanças aplicadas" }).waitFor();
+  const est = await estado(page), d = (id) => Object.values(est.docs).find((x) => x.doc_id === id).dados;
+  assert.equal(d("pj").prazo, "2030-03-29");
+  assert.equal(d("pj").entregas[0].data, "2030-03-22");
+  assert.equal(d("a").respId, BIA);
+  assert.equal(d("a").prioridade, "alta");
+  assert.deepEqual(d("b").dependeDe, ["a"]);
+  assert.equal(d("b").inicio, "2030-03-14");
+  assert.equal(d("b").prazo, "2030-03-18");
+  assert.deepEqual(d("a").comentarios[0].mencoes, [BIA]);
   assert.deepEqual(erros, []);
   await ctx.close();
 });
