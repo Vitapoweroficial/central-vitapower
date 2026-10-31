@@ -197,6 +197,7 @@
       if (temAvisos === null) temAvisos = await sql("select to_regclass('public.central_notificacoes') is not null as ok").then((r) => !!r[0]?.ok, () => false);
       return temAvisos ? avisos : null;
     }
+    if (nome === "anexos") return null; // o Claude não acessa o Storage: os arquivos abrem na Central do navegador
     if (nome === "mcp") return null; // a cópia de segurança antiga não é mais necessária: os dados já estão no Supabase
     return window.claude?.use?.(nome);
   };

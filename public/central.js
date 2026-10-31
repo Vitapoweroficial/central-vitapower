@@ -329,6 +329,35 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
     return temAvisos;
   }
 
+  /* ---------- anexos (Storage, bucket privado "central-anexos"; migração 010) ---------- */
+  const BUCKET = "central-anexos";
+  const pastaDe = (c) => (c === "pessoal" ? "pessoal-" + uid : c);
+  // o Storage só aceita nomes simples: tira acentos e símbolos, mas o nome original fica guardado no item
+  const nomeSeguro = (n) => (n || "arquivo").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w.\-]+/g, "_").replace(/^_+|_+$/g, "").slice(-80) || "arquivo";
+  const anexos = {
+    async enviar(colecao, docId, arquivo) {
+      const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+      const caminho = `${pastaDe(colecao)}/${docId}/${id}-${nomeSeguro(arquivo.name)}`;
+      const { error } = await sb.storage.from(BUCKET).upload(caminho, arquivo, { contentType: arquivo.type || "application/octet-stream", upsert: false });
+      if (error) throw error;
+      return { id, nome: (arquivo.name || "arquivo").slice(0, 200), tipo: arquivo.type || "", tamanho: arquivo.size || 0, caminho };
+    },
+    // link temporário (1 hora) para abrir o arquivo; só funciona para quem pode ver o item
+    async link(caminho) {
+      const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(caminho, 3600);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+  };
+  let temAnexos = null;
+  async function anexosAtivo() {
+    if (temAnexos === null) {
+      const { error } = await sb.storage.from(BUCKET).list("tarefas", { limit: 1 });
+      temAnexos = !error;
+    }
+    return temAnexos;
+  }
+
   /* ---------- a interface que o app usa ---------- */
   const servicos = {
     db: { collection: colecao },
@@ -347,6 +376,7 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
     sample: { json: assistente, limits: async () => ({ maxPromptBytes: 262144 }) },
     historico,
     avisos,
+    anexos,
   };
   window.claude = {
     async use(nome) {
@@ -355,6 +385,7 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
       if (nome === "sample" && !(await assistenteAtivo())) return null;
       if (nome === "historico" && !(await historicoAtivo())) return null;
       if (nome === "avisos" && !(await avisosAtivo())) return null;
+      if (nome === "anexos" && !(await anexosAtivo())) return null;
       return servicos[nome];
     },
   };

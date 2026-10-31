@@ -116,5 +116,19 @@
     async marcarLidas(ids) { est.avisos.forEach((n) => { if (!n.lida_em && (!ids || ids.includes(n.id))) n.lida_em = new Date().toISOString(); }); },
     ouvir(cb) { ouvemAvisos.add(cb); return () => ouvemAvisos.delete(cb); },
   };
+  // anexos: guarda o arquivo na memória da aba e devolve um link local (as regras de acesso são testadas no banco)
+  window.__fakeArquivos = {};
+  if (cfg.anexos !== false) servicos.anexos = {
+    async enviar(c, id, f) {
+      const aid = "ax" + Object.keys(window.__fakeArquivos).length;
+      const caminho = `${c === "pessoal" ? "pessoal-" + UID : c}/${id}/${aid}-${f.name}`;
+      window.__fakeArquivos[caminho] = { nome: f.name, texto: await f.text() };
+      return { id: aid, nome: f.name, tipo: f.type, tamanho: f.size, caminho };
+    },
+    async link(caminho) {
+      const a = window.__fakeArquivos[caminho];
+      return URL.createObjectURL(new Blob([a ? a.texto : "sumiu"], { type: "text/plain;charset=utf-8" }));
+    },
+  };
   window.claude = { use: async (n) => servicos[n] || null };
 })();
