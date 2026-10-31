@@ -222,6 +222,27 @@ input,textarea,select{font:inherit;color:var(--fg);background:var(--surface);bor
 .tlhoje{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:1;pointer-events:none}
 .tlgrid{position:absolute;top:0;bottom:0;border-left:1px solid var(--grid);pointer-events:none}
 .tlbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tlb.arr{cursor:grab;touch-action:pan-y}.tlb.arr::before,.tlb.arr::after{content:"";position:absolute;top:0;bottom:0;width:7px;cursor:ew-resize}.tlb.arr::before{left:0}.tlb.arr::after{right:0}
+.tlb.movendo{cursor:grabbing;box-shadow:0 0 0 2px var(--accent);z-index:3}
+.tlm{position:absolute;top:10px;width:12px;height:12px;border-radius:2px;transform:rotate(45deg);background:var(--surface);border:2px solid var(--pc);cursor:default}
+.tlm.ok{background:var(--pc)}.tlm.late{border-color:var(--danger)}
+.tldep{position:absolute;left:0;top:0;pointer-events:none;z-index:1;overflow:visible}
+.tldep path{fill:none;stroke:var(--muted);stroke-width:1.5}.tldep path.conf{stroke:var(--danger);stroke-dasharray:4 3}
+.tlleg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+/* carga de trabalho */
+.cg{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow-x:auto}
+.cg table{border-collapse:collapse;width:100%;min-width:640px;font-size:13px}
+.cg th,.cg td{border-top:1px solid var(--line);padding:0;text-align:center}
+.cg thead th{border-top:0;background:var(--sunk);font-size:11px;font-weight:600;color:var(--muted);padding:6px 4px;font-family:var(--f-num)}
+.cg thead th b{display:block;font-family:var(--f-body);color:var(--fg);text-transform:capitalize}
+.cg th.pe{text-align:left;padding:6px 10px;position:sticky;left:0;background:var(--surface);font-weight:600;font-size:13px;min-width:150px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg)}
+.cg thead th.pe{background:var(--sunk);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.cg th.atual{color:var(--accent)}
+.cg .cel{display:flex;align-items:center;justify-content:center;width:100%;min-height:36px;border:0;font:inherit;font-family:var(--f-num);font-weight:600;background:color-mix(in srgb,var(--accent) calc(var(--h,0)*40%),var(--surface));color:var(--fg);cursor:pointer}
+.cg .cel.zero{color:var(--muted);font-weight:400;cursor:default;background:transparent}
+.cg .cel.over{background:color-mix(in srgb,var(--danger) 22%,var(--surface));color:var(--danger)}
+.cg .cel small{font-size:10px;margin-left:3px;color:var(--danger)}
+.cg td.tot{font-family:var(--f-num);color:var(--muted);padding:0 10px}
 /* projetos */
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:10px}
 .pcard{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--pc);border-radius:12px;padding:12px 14px;display:grid;gap:8px;cursor:pointer;min-width:0;text-align:left;font:inherit;color:var(--fg)}
@@ -529,7 +550,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
         <div class="hbtns" id="hbtns"><button class="btn ia-b" id="btnIA" type="button" hidden>✨ Assistente</button><button class="btn" id="btnNovoProj" type="button">+ Projeto</button><button class="btn primary" id="btnNova" type="button">+ Nova tarefa</button></div>
       </header>
       <div class="tools" id="tools">
-        <div class="seg" id="modoVis" role="group" aria-label="Visualização"><button type="button" data-m="kanban">Kanban</button><button type="button" data-m="lista">Lista</button><button type="button" data-m="grupo">Por projeto</button><button type="button" data-m="cal">Calendário</button><button type="button" data-m="linha">Linha do tempo</button></div>
+        <div class="seg" id="modoVis" role="group" aria-label="Visualização"><button type="button" data-m="kanban">Kanban</button><button type="button" data-m="lista">Lista</button><button type="button" data-m="grupo">Por projeto</button><button type="button" data-m="cal">Calendário</button><button type="button" data-m="linha">Linha do tempo</button><button type="button" data-m="carga">Carga</button></div>
         <input id="busca" type="search" placeholder="Buscar tarefa…" autocomplete="off" aria-label="Buscar tarefa">
         <select id="agrupar" aria-label="Agrupar colunas por"></select>
         <select id="fProj" aria-label="Filtrar por projeto"></select>
@@ -548,6 +569,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
           <div id="grupos" style="display:grid;gap:10px" hidden></div>
           <div id="calend" style="display:grid;gap:10px" hidden></div>
           <div id="linha" style="display:grid;gap:10px" hidden></div>
+          <div id="carga" style="display:grid;gap:10px" hidden></div>
         </div>
       </section>
       <section id="vProjetos" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsPst"></div><div class="pgrid" id="pgrid"></div></div></section>
@@ -877,12 +899,13 @@ function render(){
   if(vista==="avisos"){renderAvisos();return}
   renderPHead();renderChipsResp($("#chipsResp"),filtradas(true));
   const base=filtradas();renderAlerta(base);const vis=aplicaRapido(base);
-  const m=modoEf();["board","lista","grupos","calend","linha"].forEach(k=>$("#"+k).hidden=true);
-  $("#alerta").hidden=m==="cal"||m==="linha";
+  const m=modoEf();["board","lista","grupos","calend","linha","carga"].forEach(k=>$("#"+k).hidden=true);
+  $("#alerta").hidden=m==="cal"||m==="linha"||m==="carga";
   if(m==="lista"){$("#lista").hidden=false;renderLista(vis);return}
   if(m==="grupo"){$("#grupos").hidden=false;renderGrupos(vis);return}
   if(m==="cal"){$("#calend").hidden=false;renderCalendario(vis);return}
   if(m==="linha"){$("#linha").hidden=false;renderLinha(vis);return}
+  if(m==="carga"){$("#carga").hidden=false;renderCarga(vis);return}
   $("#board").hidden=false;renderKanban(vis);
 }
 const modoEf=()=>vista==="projeto"&&modo==="grupo"?"kanban":modo;
@@ -1383,25 +1406,81 @@ function renderLinha(vis){
   vis.filter(t=>verArq||!t.arquivado).forEach(t=>{let s=t.inicio||null,e=t.prazo||null;if(!s&&!e){if(t.status!=="feito")semDatas++;return}
     if(!s){const c=(t.criadoEm||"").slice(0,10);s=c&&c<=e?c:e}if(!e)e=s;if(s>e)[s,e]=[e,s];if(e<tlIni||s>fim){fora++;return}itens.push({t,s,e})});
   const m=new Map();itens.forEach(i=>{const k=projDe(i.t.projetoId)?i.t.projetoId:"";if(!m.has(k))m.set(k,[]);m.get(k).push(i)});
-  if(vista!=="projeto")projetos.filter(p=>(p.status||"ativo")!=="concluido"&&(!fProj||p.id===fProj)&&(p.prazo||p.inicio)&&!m.has(p.id)).forEach(p=>m.set(p.id,[]));
+  if(vista!=="projeto")projetos.filter(p=>(p.status||"ativo")!=="concluido"&&(!fProj||p.id===fProj)&&(p.prazo||p.inicio||(p.entregas||[]).some(en=>en.data))&&!m.has(p.id)).forEach(p=>m.set(p.id,[]));
   const ks=[...m.keys()].sort((a,b)=>{const pa=projDe(a),pb=projDe(b);if(!pa)return 1;if(!pb)return -1;return (pa.prazo||"9999").localeCompare(pb.prazo||"9999")||chave(pa.nome).localeCompare(chave(pb.nome))});
   const barra=(s,e,cls,sty,tip,id)=>{const cs=s<tlIni?tlIni:s,ce=e>fim?fim:e,l=x(cs),w=(difDias(ce,cs)+1)*dw;return `<div class="tlb ${cls} ${s<tlIni?"cut-l":""} ${e>fim?"cut-r":""}" style="left:${l+1}px;width:${Math.max(6,w-2)}px;${sty}" data-tip="${esc(tip)}" ${id?`data-id="${esc(id)}"`:""}></div>`};
   let wk="";for(let i=0;i<nDias;i+=7){const d=addDias(tlIni,i),mes=i===0||d.slice(8)<="07";wk+=`<div class="wk" style="left:${i*dw}px;width:${7*dw}px">${mes?`<b>${MESES[+d.slice(5,7)-1].slice(0,3)}</b>`:"<b>&nbsp;</b>"}${fmtData(d)}</div>`}
   const fundo=`background-image:linear-gradient(to right,var(--grid) 1px,transparent 1px);background-size:${7*dw}px 100%`;
+  const marcos=p=>(p.entregas||[]).filter(en=>en.data&&en.data>=tlIni&&en.data<=fim).map(en=>`<div class="tlm ${en.ok?"ok":en.data<h?"late":""}" style="left:${x(en.data)+dw/2-6}px" data-tip="${fmtData(en.data)}${en.ok?" · concluído":en.data<h?" · atrasado":""}|Marco: ${esc(en.t||"")}"></div>`).join("");
   let rows=`<div class="tlr hd"><div class="lb">${vista==="projeto"?"Tarefa":"Projeto / tarefa"}</div><div class="tr">${wk}</div></div>`;
+  {const pa=vista==="projeto"&&projDe(projAberto);if(pa&&(pa.entregas||[]).some(en=>en.data))rows+=`<div class="tlr pr" style="--pc:var(--${pa.cor||"p1"})"><div class="lb"><span>◆ Marcos</span></div><div class="tr" style="${fundo}">${marcos(pa)}</div></div>`}
   ks.forEach(k=>{const p=projDe(k),its=(m.get(k)||[]).sort((a,b)=>a.s.localeCompare(b.s));
     if(p&&vista!=="projeto"){const ss=[p.inicio,...its.map(i=>i.s)].filter(Boolean).sort(),ee=[p.prazo,...its.map(i=>i.e)].filter(Boolean).sort();const s=ss[0],e=ee[ee.length-1];
-      rows+=`<div class="tlr pr" style="--pc:var(--${p.cor||"p1"})"><div class="lb" data-pid="${esc(p.id)}" style="cursor:pointer"><span>${esc(p.nome)}</span></div><div class="tr" style="${fundo}">${s&&e&&!(e<tlIni||s>fim)?barra(s,e,"pb","",`${fmtData(s)} → ${fmtData(e)}|${p.nome}${p.prazo?" · prazo "+fmtData(p.prazo):""}`):""}${p.prazo&&p.prazo>=tlIni&&p.prazo<=fim?`<div class="tlb" style="left:${x(p.prazo)+dw/2-6}px;width:12px;top:10px;height:12px;border-radius:2px;transform:rotate(45deg);background:var(--pc)" data-tip="${fmtData(p.prazo)}|Prazo de ${esc(p.nome)}"></div>`:""}</div></div>`}
+      rows+=`<div class="tlr pr" style="--pc:var(--${p.cor||"p1"})"><div class="lb" data-pid="${esc(p.id)}" style="cursor:pointer"><span>${esc(p.nome)}</span></div><div class="tr" style="${fundo}">${s&&e&&!(e<tlIni||s>fim)?barra(s,e,"pb","",`${fmtData(s)} → ${fmtData(e)}|${p.nome}${p.prazo?" · prazo "+fmtData(p.prazo):""}`):""}${p.prazo&&p.prazo>=tlIni&&p.prazo<=fim?`<div class="tlb" style="left:${x(p.prazo)+dw/2-6}px;width:12px;top:10px;height:12px;border-radius:2px;transform:rotate(45deg);background:var(--pc)" data-tip="${fmtData(p.prazo)}|Prazo de ${esc(p.nome)}"></div>`:""}${marcos(p)}</div></div>`}
     else if(!p&&its.length&&vista!=="projeto")rows+=`<div class="tlr pr" style="--pc:var(--line)"><div class="lb"><span>Sem projeto</span></div><div class="tr" style="${fundo}"></div></div>`;
     its.forEach(({t,s,e})=>{const c=COLS.find(c=>c.id===(t.status||"afazer")),late=t.status!=="feito"&&t.prazo&&t.prazo<h;
-      rows+=`<div class="tlr"><div class="lb tk" data-id="${esc(t.id)}"><i style="width:8px;height:8px;border-radius:50%;background:var(${c.c});flex:0 0 auto"></i><span>${t._priv?"🔒 ":""}${esc(t.titulo||"(sem título)")}</span></div><div class="tr" style="${fundo}">${barra(s,e,t.status==="feito"?"feito":"",`--c:var(${c.c})`,`${fmtData(s)} → ${fmtData(e)} · ${c.nome}${late?" · atrasada":""}|${t.titulo}`,t.id).replace("></div>",late?'><span class="mk"></span></div>':"></div>")}</div></div>`})});
+      rows+=`<div class="tlr"><div class="lb tk" data-id="${esc(t.id)}"><i style="width:8px;height:8px;border-radius:50%;background:var(${c.c});flex:0 0 auto"></i><span>${t._priv?"🔒 ":""}${esc(t.titulo||"(sem título)")}</span></div><div class="tr" style="${fundo}">${barra(s,e,(t.status==="feito"?"feito ":"")+(podeEscrever&&podeEditarTarefaEm(t.projetoId)?"arr":""),`--c:var(${c.c})`,`${fmtData(s)} → ${fmtData(e)} · ${c.nome}${late?" · atrasada":""}|${t.titulo}`,t.id).replace("></div>",late?'><span class="mk"></span></div>':"></div>")}</div></div>`})});
   const vazio=!ks.length;
   el.innerHTML=`<div class="tlbar"><button class="btn sm" type="button" data-tl="-28" aria-label="Voltar 4 semanas">‹ 4 semanas</button><button class="btn sm" type="button" data-tl="0">Hoje</button><button class="btn sm" type="button" data-tl="28" aria-label="Avançar 4 semanas">4 semanas ›</button><span class="lock">${fmtData(tlIni)} a ${fmtData(fim)}${semDatas?` · ${semDatas} ${plural(semDatas,"tarefa sem datas não aparece","tarefas sem datas não aparecem")}`:""}${fora?` · ${fora} fora deste período`:""}</span></div>
+    ${vazio?"":`<div class="tlleg"><span>Arraste uma barra para mudar as datas; puxe a ponta para mudar só o início ou o prazo.</span><span>→ dependência</span><span style="color:var(--danger)">⇢ dependência em conflito (começa antes da outra terminar)</span><span>◆ marco do projeto</span></div>`}
     ${vazio?`<div class="empty">Nenhuma tarefa com datas neste período. Defina <b>Início</b> e <b>Prazo</b> nas tarefas para vê-las aqui.</div>`:`<div class="tl"><div class="tlg" style="--lw:${lw}px;--tw:${tw}px;width:${lw+tw}px">${rows}${h>=tlIni&&h<=fim?`<div class="tlhoje" style="left:${lw+x(h)+dw/2}px" title="Hoje"></div>`:""}</div></div>`}`;
+  if(!vazio)desenharDeps(el,itens);
 }
-$("#linha").addEventListener("click",e=>{const b=e.target.closest("[data-tl]");if(b){const v=+b.dataset.tl;tlIni=v?addDias(tlIni,v):inicioSemana(addDias(hoje(),-14));render();return}
+// setas de dependência: da ponta da tarefa de que esta depende até o começo desta; tracejada em vermelho se as datas se cruzam
+function desenharDeps(el,itens){const g=el.querySelector(".tlg");if(!g)return;const base=g.getBoundingClientRect(),por=new Map(itens.map(i=>[i.t.id,i]));
+  const pos=id=>{const b=g.querySelector(`.tlb[data-id="${CSS.escape(id)}"]`);if(!b)return null;const r=b.getBoundingClientRect();return {l:r.left-base.left,r:r.right-base.left,y:r.top-base.top+r.height/2}};
+  let ps="";itens.forEach(({t,s})=>(t.dependeDe||[]).forEach(id=>{const a=por.get(id),pa=pos(id),pb=pos(t.id);if(!a||!pa||!pb)return;
+    const conf=t.status!=="feito"&&a.t.status!=="feito"&&s<=a.e,mx=pa.r+8;
+    // se a dependente começa antes, a seta contorna por entre as linhas e entra pela esquerda
+    const d=pb.l-8>=mx?`M${pa.r} ${pa.y} H${mx} V${pb.y} H${pb.l-2}`:`M${pa.r} ${pa.y} H${mx} V${(pa.y+pb.y)/2} H${pb.l-8} V${pb.y} H${pb.l-2}`;
+    ps+=`<path class="${conf?"conf":""}" marker-end="url(#${conf?"tlsetaC":"tlseta"})" d="${d}"/>`}));
+  if(!ps)return;const ns=`<svg class="tldep" width="${g.scrollWidth}" height="${g.scrollHeight}" aria-hidden="true"><defs><marker id="tlseta" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--muted);stroke:none"/></marker><marker id="tlsetaC" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--danger);stroke:none"/></marker></defs>${ps}</svg>`;
+  g.insertAdjacentHTML("beforeend",ns)}
+// arrastar barras (mouse/caneta): o meio move as duas datas, as pontas mudam só o início ou só o prazo
+let tlArr=null,tlArrastou=false;
+$("#linha").addEventListener("pointerdown",e=>{const b=e.target.closest(".tlb.arr[data-id]");if(!b||e.pointerType==="touch"||e.button!==0)return;
+  const t=todas().find(x=>x.id===b.dataset.id);if(!t)return;const r=b.getBoundingClientRect(),dw=innerWidth<700?14:22;
+  const modoA=e.clientX-r.left<7?"ini":r.right-e.clientX<7?"fim":"mover";
+  tlArr={b,t,x0:e.clientX,l0:parseFloat(b.style.left),w0:parseFloat(b.style.width),dw,modoA,d:0};b.setPointerCapture(e.pointerId);e.preventDefault()});
+$("#linha").addEventListener("pointermove",e=>{if(!tlArr)return;const a=tlArr,d=Math.round((e.clientX-a.x0)/a.dw);if(d===a.d)return;a.d=d;a.b.classList.add("movendo");
+  if(a.modoA==="mover")a.b.style.left=a.l0+d*a.dw+"px";else if(a.modoA==="fim")a.b.style.width=Math.max(6,a.w0+d*a.dw)+"px";else{const dd=Math.min(d,Math.round((a.w0-6)/a.dw));a.b.style.left=a.l0+dd*a.dw+"px";a.b.style.width=Math.max(6,a.w0-dd*a.dw)+"px"}});
+$("#linha").addEventListener("pointerup",async e=>{if(!tlArr)return;const a=tlArr;tlArr=null;a.b.classList.remove("movendo");if(!a.d)return;tlArrastou=true;setTimeout(()=>tlArrastou=false,0);
+  const t=a.t,c=(t.criadoEm||"").slice(0,10);let ini=t.inicio||null,pz=t.prazo||null;
+  if(a.modoA==="mover"){if(ini)ini=addDias(ini,a.d);if(pz)pz=addDias(pz,a.d)}
+  else if(a.modoA==="fim"){const s0=ini||(c&&pz&&c<=pz?c:pz)||ini;pz=addDias(pz||ini,a.d);if(s0&&pz<s0)pz=s0}
+  else{const e0=pz||ini;ini=addDias(ini||(c&&pz&&c<=pz?c:pz),a.d);if(e0&&ini>e0)ini=e0}
+  if(ini===(t.inicio||null)&&pz===(t.prazo||null)){render();return}
+  if(await salvarTarefa({...t,inicio:ini,prazo:pz},t))toast(`📅 ${t.titulo||"Tarefa"}: ${ini?fmtData(ini)+" → ":""}${pz?fmtData(pz):""}`,2500);else render()});
+$("#linha").addEventListener("pointercancel",()=>{if(tlArr){tlArr=null;render()}});
+$("#linha").addEventListener("click",e=>{if(tlArrastou)return;const b=e.target.closest("[data-tl]");if(b){const v=+b.dataset.tl;tlIni=v?addDias(tlIni,v):inicioSemana(addDias(hoje(),-14));render();return}
   const pf=e.target.closest("[data-pid]");if(pf){ir("projeto",{proj:pf.dataset.pid});return}
   const it=e.target.closest("[data-id]");if(it){const t=todas().find(x=>x.id===it.dataset.id);if(t)abrirTarefa(t)}});
+
+/* ---------- carga de trabalho: pessoas × semanas ---------- */
+// Cada tarefa aberta conta em todas as semanas entre o início e o prazo (só prazo: a semana do prazo); atrasada conta na semana atual.
+let cgIni=null,cgMapa=new Map();
+function renderCarga(vis){
+  const el=$("#carga"),h=hoje(),atual=inicioSemana(h);if(!cgIni)cgIni=atual;const nS=8,sems=[...Array(nS)].map((_,i)=>addDias(cgIni,i*7)),lim=Math.max(1,+lsGet("carga-limite",5)||5);
+  const ab=vis.filter(t=>t.status!=="feito"&&!t.arquivado),pes=new Map();cgMapa=new Map();
+  const pessoa=t=>{const k=t._priv?(meuId||"eu"):chaveResp(t);if(!pes.has(k))pes.set(k,{k,n:k===meuId||t._priv?"Você":nomeChaveResp(t),c:Array(nS).fill(0),late:Array(nS).fill(0),sd:0,tot:0});return pes.get(k)};
+  const poe=(k,i,t)=>{const id=k+"|"+i;if(!cgMapa.has(id))cgMapa.set(id,[]);cgMapa.get(id).push(t)};
+  ab.forEach(t=>{const pp=pessoa(t);pp.tot++;let s=t.inicio||t.prazo,e=t.prazo||t.inicio;if(!s){pp.sd++;poe(pp.k,"sd",t);return}if(s>e)[s,e]=[e,s];
+    const late=t.prazo&&t.prazo<h;if(e<h){s=e=h}else if(s<h&&late)s=h;
+    sems.forEach((w,i)=>{const wf=addDias(w,6);if(s<=wf&&e>=w){pp.c[i]++;if(late)pp.late[i]++;poe(pp.k,i,t)}})});
+  const ls=[...pes.values()].sort((a,b)=>(a.k==="sem")-(b.k==="sem")||Math.max(...b.c)-Math.max(...a.c)||a.n.localeCompare(b.n,"pt-BR"));
+  const cel=(pp,i)=>{const n=i==="sd"?pp.sd:pp.c[i],l=i==="sd"?0:pp.late[i];if(!n)return `<span class="cel zero">·</span>`;
+    return `<button type="button" class="cel ${n>lim?"over":""}" style="--h:${Math.min(1,n/lim)}" data-cg="${esc(pp.k)}|${i}" title="${esc(pp.n)}: ${n} ${plural(n,"tarefa","tarefas")}${l?` (${l} ${plural(l,"atrasada","atrasadas")})`:""}${n>lim?" · acima do limite":""}">${n}${l?`<small>${l}!</small>`:""}</button>`};
+  const sobre=ls.filter(pp=>pp.k!=="sem"&&pp.c.some(n=>n>lim));
+  el.innerHTML=`<div class="tlbar"><button class="btn sm" type="button" data-cgn="-28" aria-label="Voltar 4 semanas">‹ 4 semanas</button><button class="btn sm" type="button" data-cgn="0">Esta semana</button><button class="btn sm" type="button" data-cgn="28" aria-label="Avançar 4 semanas">4 semanas ›</button>
+      <label class="lock" style="display:flex;gap:6px;align-items:center">Limite por semana <input id="cgLim" type="number" min="1" max="50" value="${lim}" style="width:64px;padding:4px 6px"></label>
+      <span class="lock">${sobre.length?`<b style="color:var(--danger)">${sobre.length} ${plural(sobre.length,"pessoa acima","pessoas acima")} do limite</b> · `:""}clique num número para ver as tarefas</span></div>
+    ${ls.length?`<div class="cg"><table><thead><tr><th class="pe">Pessoa</th>${sems.map(w=>`<th class="${w===atual?"atual":""}"><b style="text-transform:none">${w===atual?"Esta semana":MESES[+w.slice(5,7)-1].slice(0,3).replace(/^./,c=>c.toUpperCase())}</b>${fmtData(w)}</th>`).join("")}<th>Sem data</th><th>Abertas</th></tr></thead>
+      <tbody>${ls.map(pp=>`<tr><th class="pe" title="${esc(pp.n)}">${esc(pp.n)}</th>${sems.map((_,i)=>`<td>${cel(pp,i)}</td>`).join("")}<td>${cel(pp,"sd")}</td><td class="tot">${pp.tot}</td></tr>`).join("")}</tbody></table></div>`
+      :`<div class="empty">Nenhuma tarefa aberta com esses filtros.</div>`}`}
+$("#carga").addEventListener("click",e=>{const n=e.target.closest("[data-cgn]");if(n){const v=+n.dataset.cgn;cgIni=v?addDias(cgIni,v):inicioSemana(hoje());render();return}
+  const c=e.target.closest("[data-cg]");if(!c)return;const ts=cgMapa.get(c.dataset.cg)||[];
+  menuPop(c.getBoundingClientRect(),ts.map(t=>{const sp=situPrazo(t);return [t.id,sp&&sp.c==="late"?"🔴":"•",`${t.titulo||"(sem título)"}${t.prazo?` · ${fmtData(t.prazo)}`:""}`]}),id=>{const t=todas().find(x=>x.id===id);if(t)abrirTarefa(t)})});
+$("#carga").addEventListener("change",e=>{if(e.target.id==="cgLim"){lsSet("carga-limite",Math.max(1,+e.target.value||5));render()}});
 
 /* ---------- diálogo de tarefa ---------- */
 let ckTmp=[];
@@ -1416,11 +1495,12 @@ function syncVis(){$("#rResp").hidden=visAtual()!=="time"}
 document.querySelectorAll('input[name="tVis"]').forEach(r=>r.addEventListener("change",syncVis));
 function syncWait(){$("#lWait").style.visibility=$("#tStatus").value==="aguardando"?"visible":"hidden"}
 $("#tStatus").addEventListener("change",syncWait);
-function renderCkEm(el,arr){el.innerHTML="";arr.forEach((x,i)=>{const r=document.createElement("div");r.className="ckrow"+(x.ok?" ok":"");
-  r.innerHTML=`<input type="checkbox" ${x.ok?"checked":""} aria-label="Feito"><input type="text" aria-label="Passo"><button class="xbtn" type="button" aria-label="Remover">×</button>`;
-  const [cb,tx]=r.querySelectorAll("input");tx.value=x.t;cb.disabled=tx.disabled=!podeEscrever;
+function renderCkEm(el,arr,comData){el.innerHTML="";arr.forEach((x,i)=>{const r=document.createElement("div");r.className="ckrow"+(x.ok?" ok":"");
+  r.innerHTML=`<input type="checkbox" ${x.ok?"checked":""} aria-label="Feito"><input type="text" aria-label="Passo">${comData?`<input type="date" aria-label="Data do marco" title="Data do marco (aparece na linha do tempo)" style="width:auto;padding:6px 8px">`:""}<button class="xbtn" type="button" aria-label="Remover">×</button>`;
+  const [cb,tx,dt]=r.querySelectorAll("input");tx.value=x.t;cb.disabled=tx.disabled=!podeEscrever;
+  if(dt){dt.value=x.data||"";dt.disabled=!podeEscrever;dt.addEventListener("change",()=>{if(dt.value)x.data=dt.value;else delete x.data})}
   cb.addEventListener("change",()=>{x.ok=cb.checked;r.classList.toggle("ok",x.ok)});tx.addEventListener("input",()=>{x.t=tx.value});
-  r.querySelector(".xbtn").addEventListener("click",()=>{arr.splice(i,1);renderCkEm(el,arr)});if(!podeEscrever)r.querySelector(".xbtn").hidden=true;el.appendChild(r)})}
+  r.querySelector(".xbtn").addEventListener("click",()=>{arr.splice(i,1);renderCkEm(el,arr,comData)});if(!podeEscrever)r.querySelector(".xbtn").hidden=true;el.appendChild(r)})}
 function addCk(){const v=$("#tCkNovo").value.trim();if(!v)return;ckTmp.push({id:novoId(),t:v,ok:false});$("#tCkNovo").value="";renderCkEm($("#tCk"),ckTmp);$("#tCkNovo").focus()}
 $("#tCkAdd").addEventListener("click",addCk);$("#tCkNovo").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCk()}});
 function renderCamposDlg(t){const el=$("#tCampos");el.innerHTML="";const vals=t?.campos||{};
@@ -1543,13 +1623,13 @@ const MODPROJ={
     t:[["Briefing com o cliente",2,"alta"],["Pesquisar ativos e dosagens",5,"media"],["Proposta de fórmula e custo",8,"alta"],["Produzir amostras",13,"media"],["Avaliação sensorial",16,"media"],["Ajustes na fórmula",19,"media"],["Aprovação final do cliente",22,"alta"],["Ficha técnica e especificação",24,"media"]]}
 };
 let aoCriarProj=null,ckP=[];
-function addCkP(){const v=$("#pCkNovo").value.trim();if(!v)return;ckP.push({id:novoId(),t:v,ok:false});$("#pCkNovo").value="";renderCkEm($("#pCk"),ckP);$("#pCkNovo").focus()}
+function addCkP(){const v=$("#pCkNovo").value.trim();if(!v)return;ckP.push({id:novoId(),t:v,ok:false});$("#pCkNovo").value="";renderCkEm($("#pCk"),ckP,true);$("#pCkNovo").focus()}
 $("#pCkAdd").addEventListener("click",addCkP);$("#pCkNovo").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCkP()}});
 function abrirProjeto(p,cb){editP=p||null;aoCriarProj=cb||null;
   $("#pTit").textContent=p?"Editar projeto":"Novo projeto";$("#pNome").value=p?.nome||"";$("#pDesc").value=p?.descricao||"";$("#pPrazo").value=p?.prazo||"";$("#pInicio").value=p?.inicio||"";$("#pSt").value=p?.status||"ativo";
   const cor=p?.cor||CORES[projetos.length%CORES.length];
   $("#pCores").innerHTML=CORES.map(c=>`<label style="--pc:var(--${c})" title="Cor"><input type="radio" name="pCor" value="${c}" ${c===cor?"checked":""} aria-label="Cor ${c.slice(1)}"></label>`).join("");
-  ckP=JSON.parse(JSON.stringify(p?.entregas||[]));renderCkEm($("#pCk"),ckP);$("#pCkNovo").value="";
+  ckP=JSON.parse(JSON.stringify(p?.entregas||[]));renderCkEm($("#pCk"),ckP,true);$("#pCkNovo").value="";
   $("#lModP").hidden=!!p;$("#pMod").innerHTML=`<option value="">Projeto em branco</option>${Object.entries(MODPROJ).map(([k,m])=>`<option value="${k}">${esc(m.nome)} (${m.t.length} tarefas)</option>`).join("")}`;$("#pMod").value="";$("#pModInfo").textContent="";
   $("#pDel").hidden=!p||!podeExcluirProj(p);$("#pConf").hidden=true;$("#pActs").hidden=false;$("#pVer").hidden=!p||!hist;
   acsTmp={acesso:p?.acesso||"time",membros:JSON.parse(JSON.stringify(p?.membros||(meuId?[{id:meuId,papel:"dono"}]:[])))};
