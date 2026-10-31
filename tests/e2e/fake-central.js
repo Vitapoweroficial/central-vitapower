@@ -92,6 +92,18 @@
     },
   };
   if (cfg.historico !== false) servicos.historico = historico;
+  // assistente: os testes definem window.__fakeIA(turnos, ferramentas) e recebem as chamadas de ferramenta em __fakeIAChamadas
+  if (cfg.ia) {
+    window.__fakeIAChamadas = [];
+    const sample = async () => ({ text: "" });
+    sample.limits = async () => ({ tools: true, images: { maxCount: 0 } });
+    sample.json = async (turnos, opts = {}) => {
+      const ferr = Object.fromEntries((opts.tools || []).map((f) => [f.name, f]));
+      const usar = async (nome, args) => { const r = await ferr[nome].execute(args, {}); window.__fakeIAChamadas.push({ nome, args, r }); return r; };
+      return window.__fakeIA(turnos, usar);
+    };
+    servicos.sample = sample;
+  }
   // notificações: os testes criam avisos com __fakeAviso (as regras de quem recebe são testadas no banco, tests/db)
   est.avisos = est.avisos || [];
   const ouvemAvisos = new Set();

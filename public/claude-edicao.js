@@ -14,6 +14,9 @@
   const ouvintes = new Map();
   window.CENTRAL = { modo: "claude" };
 
+  // Grava como o Andrew: na mesma instrução, apresenta-se ao banco com o id e o e-mail dele. Assim o histórico e as
+  // notificações sabem quem fez, e valem as mesmas permissões do app. A apresentação acaba com a instrução.
+  const comoDono = (q) => `with eu as (select set_config('request.jwt.claims', json_build_object('sub', u.id, 'email', u.email)::text, true) from auth.users u where u.id = '${DONO}') ${q} from eu`;
   const lit = (s) => { s = String(s); let t; do { t = "$c" + Math.random().toString(36).slice(2, 9) + "$"; } while (s.includes(t)); return t + s + t; };
   async function sql(q) {
     const r = await mcp.callTool("Supabase", "execute_sql", { project_id: PROJ, query: q }, { cache: false });
@@ -74,7 +77,7 @@
           async set(d) {
             if (await relacional()) {
               let r;
-              try { r = await sql(`select public.central_gravar(${lit(c)}, ${lit(id)}, ${lit(JSON.stringify(d))}::jsonb) as dados`); }
+              try { r = await sql(comoDono(`select public.central_gravar(${lit(c)}, ${lit(id)}, ${lit(JSON.stringify(d))}::jsonb) as dados`)); }
               catch (e) { throw conflito(e) || e; }
               ouvintes.forEach((_, outra) => { if (outra !== c) local(outra, id, null); });
               local(c, id, r[0]?.dados ?? d);
@@ -84,7 +87,7 @@
             local(c, id, d);
           },
           async delete() {
-            await sql((await relacional()) ? `select public.central_excluir(${lit(c)}, ${lit(id)}) as ok` : `delete from public.central_docs where colecao = ${lit(c)} and doc_id = ${lit(id)}`);
+            await sql((await relacional()) ? comoDono(`select public.central_excluir(${lit(c)}, ${lit(id)}) as ok`) : `delete from public.central_docs where colecao = ${lit(c)} and doc_id = ${lit(id)}`);
             local(c, id, null);
           },
           async get() {
