@@ -361,6 +361,10 @@ test("Notificações e menções: @ no comentário e na página, aviso abre a ta
   await page.waitForFunction(() => document.querySelector("#nAvisos").textContent === "");
   await page.keyboard.press("Escape");
 
+  // lembrete diário do banco (sem autor): frase própria
+  await page.evaluate((doc) => window.__fakeAviso({ tipo: "prazo", por: null, colecao: "tarefas", doc_id: doc, titulo: "Revisar rótulo do whey" }), id);
+  await page.locator("#avisos .avi.nova", { hasText: "A tarefa Revisar rótulo do whey vence hoje" }).waitFor();
+
   // menção na página vira um marcador com o id da pessoa
   await page.click("#addTime");
   await page.locator("#vPagina:not([hidden])").waitFor();
