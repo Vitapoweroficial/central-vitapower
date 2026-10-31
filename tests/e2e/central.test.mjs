@@ -29,9 +29,11 @@ before(async () => {
 });
 after(async () => { await browser?.close(); srv?.close(); });
 
-async function abrir({ historico = true, largura = 1280 } = {}) {
+async function abrir({ historico = true, largura = 1280, semente = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: largura, height: 900 }, serviceWorkers: "block" });
   await ctx.addInitScript((h) => { window.__FAKE__ = { historico: h }; localStorage.setItem("tarefas-vista", JSON.stringify("time")); localStorage.setItem("tarefas-modo", JSON.stringify("kanban")); }, historico);
+  // semente: dados iniciais do banco simulado (só na primeira carga da aba)
+  if (semente) await ctx.addInitScript((s) => { if (!sessionStorage.getItem("fake-central")) sessionStorage.setItem("fake-central", s); }, JSON.stringify(semente));
   await ctx.route("**/vendor/supabase-*.js", (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
   await ctx.route("**/central.js", (r) => r.fulfill({ contentType: "text/javascript", body: fake }));
   const page = await ctx.newPage();
@@ -377,6 +379,57 @@ test("Notificações e menções: @ no comentário e na página, aviso abre a ta
   await page.keyboard.type("amanhã");
   await page.keyboard.press("Control+s");
   await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.tipo === "pagina" && /data-mencao="bbbbbbbb-0000-0000-0000-000000000002"/.test(d.dados.conteudo || "")));
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
+
+test("Gantt e carga: setas de dependência, marco, arrastar barra e carga por pessoa", async () => {
+  // um projeto com marco e tarefas do time com datas (duas dependentes, uma em conflito)
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const UID = "aaaaaaaa-0000-0000-0000-000000000001";
+  const doc = (colecao, doc_id, dados) => [colecao + "\u0000" + doc_id, { colecao, doc_id, dados: { _versao: 1, ...dados }, por: UID }];
+  const docs = Object.fromEntries([
+    doc("projetos", "pj", { nome: "Linha Kids", cor: "p2", status: "ativo", inicio: iso(-3), prazo: iso(30), membros: [{ id: UID, papel: "dono" }], _papel: "dono", entregas: [{ id: "m1", t: "Rótulo aprovado", ok: false, data: iso(10) }] }),
+    doc("tarefas", "a", { tipo: "tarefa", titulo: "Fórmula", status: "fazendo", projetoId: "pj", inicio: iso(0), prazo: iso(4), respId: UID, ordem: 1 }),
+    doc("tarefas", "b", { tipo: "tarefa", titulo: "Rótulo", status: "afazer", projetoId: "pj", inicio: iso(6), prazo: iso(9), respId: UID, dependeDe: ["a"], ordem: 2 }),
+    doc("tarefas", "c", { tipo: "tarefa", titulo: "Teste de estabilidade", status: "afazer", projetoId: "pj", inicio: iso(2), prazo: iso(5), respId: UID, dependeDe: ["a"], ordem: 3 }),
+    doc("tarefas", "d", { tipo: "tarefa", titulo: "Laudo", status: "afazer", inicio: iso(0), prazo: iso(3), respId: UID, ordem: 4 }),
+  ]);
+  const { page, ctx, erros } = await abrir({ semente: { docs, hist: [], seq: 0 } });
+  await page.locator("#board .card", { hasText: "Laudo" }).waitFor();
+  await page.click('#modoVis [data-m="linha"]');
+  await page.locator("#linha .tldep").waitFor();
+  assert.equal(await page.locator("#linha .tldep > path").count(), 2, "duas setas");
+  assert.equal(await page.locator("#linha .tldep > path.conf").count(), 1, "uma em conflito");
+  assert.equal(await page.locator("#linha .tlm").count(), 1, "o marco aparece");
+
+  // arrastar a barra do Laudo 2 dias para a frente muda início e prazo
+  const antes = tarefa(await estado(page), "Laudo").dados;
+  const bar = page.locator('#linha .tlb[data-id="d"]');
+  const r = await bar.boundingBox();
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(r.x + r.width / 2 + 22, r.y + r.height / 2, { steps: 3 });
+  await page.mouse.move(r.x + r.width / 2 + 44, r.y + r.height / 2, { steps: 3 });
+  await page.mouse.up();
+  await page.waitForFunction((p) => Object.values(window.__fakeEstado().docs).some((d) => d.doc_id === "d" && d.dados.prazo !== p), antes.prazo);
+  const depois = tarefa(await estado(page), "Laudo").dados;
+  const mais2 = (iso) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); };
+  assert.equal(depois.inicio, mais2(antes.inicio));
+  assert.equal(depois.prazo, mais2(antes.prazo));
+  assert.equal(await page.locator("#dlgT[open]").count(), 0, "arrastar não abre a tarefa");
+
+  // carga: com limite 2, esta semana fica acima do limite; clicar no número lista as tarefas
+  await page.click('#modoVis [data-m="carga"]');
+  await page.locator("#carga .cg").waitFor();
+  await page.fill("#cgLim", "2");
+  await page.dispatchEvent("#cgLim", "change");
+  await page.locator("#carga .cel.over").first().waitFor();
+  await page.click("#carga .cel.over >> nth=0");
+  await page.locator(".pop.menu button", { hasText: "Fórmula" }).waitFor();
+  await page.click(".pop.menu button >> text=Fórmula");
+  await page.locator("#dlgT[open]").waitFor();
+  assert.equal(await page.inputValue("#tTitulo"), "Fórmula");
   assert.deepEqual(erros, []);
   await ctx.close();
 });
