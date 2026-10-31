@@ -1235,11 +1235,14 @@ function tabDesempenho(l,desde,per,por){
   return `<div class="panel"><div class="ph"><h3>${tit}</h3><span class="hint">entregas dos últimos ${per} dias · abertas agora</span></div>
     ${ls.length?`<div style="overflow-x:auto"><table class="mini"><thead><tr><th>${por==="pessoa"?"Pessoa":"Projeto"}</th><th class="r">Concluídas</th><th class="r">No prazo</th><th class="r">Tempo médio</th><th class="r">Abertas</th><th class="r">Atrasadas</th></tr></thead><tbody>
     ${ls.map(r=>`<tr ${por==="projeto"&&r.k?`data-p="${esc(r.k)}"`:""}><td>${por==="projeto"&&r.k?`<span class="pj" style="--pc:var(--${r.cor||"p1"})"><i></i><span>${esc(r.n)}</span></span>`:esc(r.n)}</td><td class="r">${r.feitas.length}</td><td class="r ${r.pct!=null&&r.pct<.7?"ruim":""}" title="${r.cp?`${r.ok} de ${r.cp} com prazo`:"nenhuma concluída com prazo"}">${r.pct==null?"—":pctTx(r.ok,r.cp)}</td><td class="r">${fmtD(r.lead)}</td><td class="r">${r.ab}</td><td class="r ${r.late?"ruim":""}">${r.late}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Nada para mostrar com esses filtros.</div>`}</div>`}
-function baixarCsv(l){const h=hoje(),q=v=>{const x=v==null?"":String(v);return /[";\n]/.test(x)?`"${x.replace(/"/g,'""')}"`:x};
+async function baixarCsv(l){const h=hoje(),q=v=>{const x=v==null?"":String(v);return /[";\n]/.test(x)?`"${x.replace(/"/g,'""')}"`:x};
   const lin=[["Tarefa","Projeto","Responsável","Situação","Prioridade","Criada em","Início","Prazo","Concluída em","No prazo","Dias para concluir","Atrasada agora"]];
   l.forEach(t=>{const f=t.status==="feito",c=diaConc(t);lin.push([t.titulo||"",projDe(t.projetoId)?.nome||"",t._priv?"Você (pessoal)":nomeResp(t)||"",COLS.find(x=>x.id===(t.status||"afazer"))?.nome||t.status,PRIO[t.prioridade]?.[0]||"",(t.criadoEm||"").slice(0,10),t.inicio||"",t.prazo||"",f?c:"",f&&t.prazo?(c<=t.prazo?"sim":"não"):"",f?leadDias(t)??"":"",!f&&t.prazo&&t.prazo<h?"sim":""])});
-  const blob=new Blob(["\ufeff"+lin.map(r=>r.map(q).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);a.download=`tarefas-${h}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+  const nome=`tarefas-${h}.csv`,blob=new Blob(["\ufeff"+lin.map(r=>r.map(q).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+  // dentro do Claude o arquivo sai pelo serviço de downloads (o visualizador pede confirmação); no app, por um link comum
+  const dl=await cUse("downloads").catch(()=>null);
+  if(dl){try{await dl.save({filename:nome,data:blob})}catch(e){if(e?.code!=="declined")toast("Não deu para baixar a planilha aqui.",3000)}return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=nome;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function renderPainel(){
   const base=filtradas(true);renderChipsResp($("#chipsRespP"),base);
   const l=fResp?base.filter(t=>chaveResp(t)===fResp):base,h=hoje(),per=PERIODOS[pPer]?pPer:30,d30=addDias(h,-per),s7=addDias(h,7);
