@@ -29,9 +29,9 @@ before(async () => {
 });
 after(async () => { await browser?.close(); srv?.close(); });
 
-async function abrir({ historico = true, largura = 1280, semente = null, ia = false } = {}) {
+async function abrir({ historico = true, largura = 1280, semente = null, ia = false, anexos = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width: largura, height: 900 }, serviceWorkers: "block" });
-  await ctx.addInitScript((h) => { window.__FAKE__ = { historico: h.historico, ia: h.ia }; localStorage.setItem("tarefas-vista", JSON.stringify("time")); localStorage.setItem("tarefas-modo", JSON.stringify("kanban")); }, { historico, ia });
+  await ctx.addInitScript((h) => { window.__FAKE__ = { historico: h.historico, ia: h.ia, anexos: h.anexos }; localStorage.setItem("tarefas-vista", JSON.stringify("time")); localStorage.setItem("tarefas-modo", JSON.stringify("kanban")); }, { historico, ia, anexos });
   // semente: dados iniciais do banco simulado (só na primeira carga da aba)
   if (semente) await ctx.addInitScript((s) => { if (!sessionStorage.getItem("fake-central")) sessionStorage.setItem("fake-central", s); }, JSON.stringify(semente));
   await ctx.route("**/vendor/supabase-*.js", (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
@@ -528,4 +528,52 @@ test("Assistente gestor: consulta a linha do tempo e a carga, pergunta, e propõ
   assert.deepEqual(d("a").comentarios[0].mencoes, [BIA]);
   assert.deepEqual(erros, []);
   await ctx.close();
+});
+
+test("Anexos: PDF na tarefa e foto na página, abrem com um clique; sem Storage, só a lista", async () => {
+  const { page, ctx, erros } = await abrir();
+  await criarRapida(page, "Cotação de frascos");
+  await page.locator("#board .card", { hasText: "Cotação de frascos" }).click();
+  await page.locator("#dlgT[open]").waitFor();
+  await page.locator("#tAnxBtn:visible").waitFor();
+  await page.setInputFiles("#tAnxIn", { name: "cotação frascos.pdf", mimeType: "application/pdf", buffer: Buffer.from("preço 1,20") });
+  await page.locator('#tLinks .anxa', { hasText: "cotação frascos.pdf" }).waitFor();
+  await page.click("#tSalvar");
+  await page.locator("#dlgT[open]").waitFor({ state: "detached" }).catch(() => {});
+  let t = tarefa(await estado(page), "Cotação de frascos");
+  assert.equal(t.dados.anexos.length, 1);
+  assert.equal(t.dados.anexos[0].nome, "cotação frascos.pdf");
+  assert.equal(t.dados.anexos[0].tipo, "application/pdf");
+  assert.match(t.dados.anexos[0].caminho, new RegExp(`^tarefas/${t.doc_id}/`));
+  // abre o arquivo em outra aba
+  await page.locator("#board .card", { hasText: "Cotação de frascos" }).click();
+  await page.locator("#dlgT[open]").waitFor();
+  const [aba] = await Promise.all([ctx.waitForEvent("page"), page.click('#tLinks .anxa')]);
+  await aba.waitForURL(/^blob:/);
+  assert.match(await aba.locator("body").innerText(), /preço 1,20/);
+  await aba.close();
+  // tirar da lista não apaga o arquivo
+  await page.click('#tLinks [data-tx="0"]');
+  await page.click("#tSalvar");
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.titulo === "Cotação de frascos" && d.dados.anexos.length === 0));
+  assert.equal(Object.keys(await page.evaluate(() => window.__fakeArquivos)).length, 1);
+  // página: anexa e grava na hora
+  await page.click("#addTime");
+  await page.locator("#vPagina:not([hidden])").waitFor();
+  await page.fill("#pgTitulo", "Laudos");
+  await page.locator("#pgAnxBtn").waitFor();
+  await page.setInputFiles("#pgAnxIn", [{ name: "laudo.jpg", mimeType: "image/jpeg", buffer: Buffer.from("foto") }, { name: "laudo2.pdf", mimeType: "application/pdf", buffer: Buffer.from("x") }]);
+  await page.locator("#pgAnx h3", { hasText: "Anexos (2)" }).waitFor();
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.tipo === "pagina" && d.dados.titulo === "Laudos" && (d.dados.anexos || []).length === 2));
+  assert.match(await page.locator("#pgAnx").innerText(), /🖼️ laudo\.jpg/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+  // versão sem Storage (como a do Claude): mostra os anexos, mas não oferece enviar
+  const b = await abrir({ anexos: false });
+  await criarRapida(b.page, "Sem storage");
+  await b.page.locator("#board .card", { hasText: "Sem storage" }).click();
+  await b.page.locator("#dlgT[open]").waitFor();
+  assert.equal(await b.page.locator("#tAnxBtn").isVisible(), false);
+  assert.deepEqual(b.erros, []);
+  await b.ctx.close();
 });

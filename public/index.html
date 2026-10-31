@@ -429,6 +429,10 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
 .dep.ok{color:var(--muted);text-decoration:line-through}.dep.pend{border-color:var(--warn);background:var(--warn-bg)}
 .dep a{color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dep .xbtn{padding:0 6px;font-size:14px}
+.dep .anxa{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+.anxrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.anxrow small{color:var(--muted)}
+.lks.soltar,.pganx.soltar{outline:2px dashed var(--accent);outline-offset:4px;border-radius:10px}
+.pganx{margin:18px 0 0;padding-top:12px;border-top:1px solid var(--line)}.pganx h3{font-size:13px;color:var(--muted);margin:0 0 8px;font-weight:600}.pganx .lks{margin-bottom:8px}
 .subs{display:grid;gap:3px}
 .sbt{display:flex;gap:8px;align-items:center;font-size:13px}
 .sbt input{width:auto;margin:0}
@@ -597,6 +601,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
           </div>
           <div class="modelos" id="modelos" hidden></div>
           <div class="doc" id="ed" contenteditable="true" data-ph="Escreva aqui… Digite / para ver os blocos (título, lista, checklist, tabela…)" spellcheck="true"></div>
+          <div class="pganx" id="pgAnx" hidden></div>
           <div class="subp" id="subp"></div>
         </div>
       </section>
@@ -643,6 +648,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <div class="ckrow"><input type="text" id="tSubNovo" placeholder="Nova subtarefa e tecle Enter" autocomplete="off"><button class="mv" type="button" id="tSubAdd">+ Subtarefa</button></div></div>
     <div class="blk"><span class="bt">Links e anexos <small>Drive, fotos, documentos, pedidos…</small></span>
       <div class="lks" id="tLinks"></div>
+      <div class="anxrow" id="tAnxRow"><button class="mv" type="button" id="tAnxBtn">📎 Anexar arquivo</button><input type="file" id="tAnxIn" multiple hidden><small id="tAnxNota"></small></div>
       <div class="ckrow"><input type="text" id="tLinkNome" placeholder="Nome (opcional)" autocomplete="off" style="flex:0 1 38%"><input type="url" id="tLinkUrl" placeholder="https://…" autocomplete="off"><button class="mv" type="button" id="tLinkAdd">+ Link</button></div></div>
     <div class="blk" id="tComB"><span class="bt">Comentários</span>
       <div class="coms" id="tComs"></div>
@@ -1578,7 +1584,7 @@ function abrirTarefa(t,padrao){
   const semEu=!modoLocal&&!colEu;$("#tVisEu").disabled=semEu;((d._priv&&!semEu)?$("#tVisEu"):$("#tVisTime")).checked=true;opcoesResp(d);syncVis();syncWait();
   renderCamposDlg(d);
   ckTmp=JSON.parse(JSON.stringify(d.checklist||[]));renderCkEm($("#tCk"),ckTmp);$("#tCkNovo").value="";
-  $("#tRep").value=REP[d.recorrencia]?d.recorrencia:"";depTmp=[...(d.dependeDe||[])];linkTmp=JSON.parse(JSON.stringify(d.links||[]));
+  $("#tRep").value=REP[d.recorrencia]?d.recorrencia:"";depTmp=[...(d.dependeDe||[])];linkTmp=JSON.parse(JSON.stringify(d.links||[]));anxTmp=JSON.parse(JSON.stringify(d.anexos||[]));
   ["#tSubNovo","#tLinkNome","#tLinkUrl","#tComTx"].forEach(s=>$(s).value="");comMenc.clear();$("#tPai").dataset.v="0";renderExtrasDlg(d);
   const h=(d.historico||[]).slice().reverse(),hb=$("#tHist");hb.hidden=n||!(h.length||d.criadoEm);
   hb.innerHTML=`<b>Histórico</b><ol>${h.map(x=>`<li>${fmtDT(x.em)} · ${esc(COLS.find(c=>c.id===x.de)?.nome||"")} → ${esc(COLS.find(c=>c.id===x.para)?.nome||"")}${x.por&&x.por!==meuId&&nomesU[x.por]?` <small>por ${esc(nomesU[x.por])}</small>`:""}</li>`).join("")}${d.criadoEm?`<li>${fmtDT(d.criadoEm)} · criada${d.criadoPor&&d.criadoPor!==meuId&&nomesU[d.criadoPor]?" por "+esc(nomesU[d.criadoPor]):""}</li>`:""}</ol>`;
@@ -1590,7 +1596,7 @@ function abrirTarefa(t,padrao){
   $("#dlgT").showModal();setTimeout(()=>{if(n)$("#tTitulo").focus()},30);
 }
 /* repetição, dependências, subtarefas, links e comentários no diálogo */
-let depTmp=[],linkTmp=[];
+let depTmp=[],linkTmp=[],anxTmp=[];
 const curtoT=s=>{s=String(s||"(sem título)");return s.length>60?s.slice(0,58)+"…":s};
 function candidatas(selfId){const pj=$("#tProj").value||null;return todas().filter(x=>x.id!==selfId&&!x.arquivado).sort((a,b)=>((b.projetoId===pj)-(a.projetoId===pj))||(a.status==="feito")-(b.status==="feito")||chave(a.titulo).localeCompare(chave(b.titulo)))}
 function renderExtrasDlg(d){
@@ -1604,13 +1610,47 @@ function renderExtrasDlg(d){
   const subs=selfId?todas().filter(x=>x.paiId===selfId&&!x.arquivado).sort((a,b)=>(a.status==="feito")-(b.status==="feito")||(a.prazo||"9999").localeCompare(b.prazo||"9999")):[];
   $("#tSubB").hidden=!selfId;
   $("#tSubs").innerHTML=subs.map(x=>{const sp=situPrazo(x);return `<div class="sbt ${x.status==="feito"?"ok":""}"><input type="checkbox" data-subck="${esc(x.id)}" ${x.status==="feito"?"checked":""} ${podeEscrever?"":"disabled"} aria-label="Concluída"><button type="button" class="st" data-subab="${esc(x.id)}" title="Abrir subtarefa">${esc(x.titulo||"(sem título)")}</button>${sp?`<span class="due ${sp.c}">${esc(sp.tx)}</span>`:""}</div>`}).join("")||`<span class="lock">Nenhuma ainda.</span>`;
-  $("#tLinks").innerHTML=linkTmp.map((l,i)=>`<span class="dep"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">🔗 ${esc(l.nome||l.url.replace(/^https?:\/\//,"").slice(0,40))}</a>${podeEscrever?`<button class="xbtn" type="button" data-lkx="${i}" aria-label="Remover link">×</button>`:""}</span>`).join("")||`<span class="lock">Nenhum.</span>`;
+  const podeAnx=podeEscrever&&podeEditarTarefaEm(pj);
+  $("#tLinks").innerHTML=(htmlAnexos(anxTmp,podeAnx,"t")+linkTmp.map((l,i)=>`<span class="dep"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">🔗 ${esc(l.nome||l.url.replace(/^https?:\/\//,"").slice(0,40))}</a>${podeEscrever?`<button class="xbtn" type="button" data-lkx="${i}" aria-label="Remover link">×</button>`:""}</span>`).join(""))||`<span class="lock">Nenhum.</span>`;
+  $("#tAnxRow").hidden=!podeAnx||(!anxNs&&!anxTmp.length);$("#tAnxBtn").hidden=!anxNs||!selfId;
+  $("#tAnxNota").textContent=!anxNs?"Para anexar e abrir arquivos, use a Central no navegador.":!selfId?"Salve a tarefa para poder anexar arquivos.":anxPendente?"Enviando…":"PDF, foto, laudo, cotação… até 25 MB. Arraste aqui ou clique.";
   const cs=(d?.comentarios||[]);$("#tComB").hidden=!selfId;
   $("#tComs").innerHTML=cs.map(c=>`<div class="com"><b>${esc(!c.por||c.por===meuId?"Você":(nomesU[c.por]||"Alguém do time"))}</b><small>${fmtDT(c.em)}</small>\n${textoComMencoes(c)}</div>`).join("")||`<span class="lock">Nenhum comentário.</span>`;
   const cb=$("#tComs");cb.scrollTop=cb.scrollHeight}
 $("#tDeps").addEventListener("click",e=>{const b=e.target.closest("[data-depx]");if(!b)return;depTmp.splice(+b.dataset.depx,1);renderExtrasDlg(editT)});
 $("#tDepAdd").addEventListener("change",e=>{const v=e.target.value;if(v&&!depTmp.includes(v))depTmp.push(v);renderExtrasDlg(editT)});
-$("#tLinks").addEventListener("click",e=>{const b=e.target.closest("[data-lkx]");if(!b)return;linkTmp.splice(+b.dataset.lkx,1);renderExtrasDlg(editT)});
+$("#tLinks").addEventListener("click",e=>{const ab=e.target.closest("[data-tabre]");if(ab){abrirAnexo(anxTmp[+ab.dataset.tabre]);return}
+  const ax=e.target.closest("[data-tx]");if(ax){anxTmp.splice(+ax.dataset.tx,1);renderExtrasDlg(editT);return}
+  const b=e.target.closest("[data-lkx]");if(!b)return;linkTmp.splice(+b.dataset.lkx,1);renderExtrasDlg(editT)});
+/* anexos: o arquivo vai para o Storage na hora; a lista do item é gravada junto com a tarefa (Salvar) */
+let anxNs=null,anxPendente=0;const ANX_MAX=25*1024*1024;
+function icAnexo(a){const t=a?.tipo||"",n=(a?.nome||"").toLowerCase();return t.startsWith("image/")?"🖼️":t==="application/pdf"||n.endsWith(".pdf")?"📄":/sheet|excel|csv/.test(t)||/\.(xlsx?|csv)$/.test(n)?"📊":/word|document/.test(t)||/\.docx?$/.test(n)?"📝":"📎"}
+function tamAnx(b){b=+b||0;return b>=1048576?(b/1048576).toFixed(1).replace(".",",")+" MB":Math.max(1,Math.round(b/1024))+" KB"}
+function htmlAnexos(lista,podeTirar,pre){return (lista||[]).map((a,i)=>`<span class="dep"><button type="button" class="anxa" data-${pre}abre="${i}" title="${esc(a.nome||"arquivo")} · ${tamAnx(a.tamanho)}${a.por&&nomesU[a.por]?" · enviado por "+esc(nomesU[a.por]):""}${a.em?" em "+esc(fmtDT(a.em)):""}">${icAnexo(a)} ${esc(a.nome||"arquivo")}</button>${podeTirar?`<button class="xbtn" type="button" data-${pre}x="${i}" aria-label="Tirar anexo ${esc(a.nome||"")}" title="Tirar da lista (o arquivo continua guardado no histórico)">×</button>`:""}</span>`).join("")}
+async function abrirAnexo(a){
+  if(!a)return;if(!anxNs){toast("Para abrir arquivos, use a Central no navegador: central-vitapower.vercel.app",5000);return}
+  const w=window.open("","_blank");
+  try{const u=await anxNs.link(a.caminho);if(w){w.opener=null;w.location.href=u}else{const l=document.createElement("a");l.href=u;l.target="_blank";l.rel="noopener";document.body.appendChild(l);l.click();l.remove()}}
+  catch(e){w?.close();toast("Não foi possível abrir o arquivo. Talvez você não tenha acesso a ele.",5000)}}
+async function enviarAnexos(files,colecao,docId){
+  const out=[];
+  for(const f of [...files]){
+    if(f.size>ANX_MAX){toast(`“${f.name}” passa de 25 MB e não foi anexado`,5000);continue}
+    try{out.push({...(await anxNs.enviar(colecao,docId,f)),por:meuId||null,em:new Date().toISOString()})}catch(e){toast(`Não foi possível enviar “${f.name}”`,5000)}}
+  return out}
+async function anexarNaTarefa(files){
+  const t=editT;if(!t?.id||!anxNs||!files?.length)return;
+  anxPendente++;renderExtrasDlg(editT);
+  const novos=await enviarAnexos(files,t._priv?"pessoal":"tarefas",t.id);anxPendente--;
+  if(editT?.id!==t.id)return;anxTmp.push(...novos);renderExtrasDlg(editT);
+  if(novos.length)toast(novos.length===1?"Arquivo anexado. Salve a tarefa para guardar.":`${novos.length} arquivos anexados. Salve a tarefa para guardar.`)}
+$("#tAnxBtn").addEventListener("click",()=>$("#tAnxIn").click());
+$("#tAnxIn").addEventListener("change",e=>{const fs=[...e.target.files];e.target.value="";anexarNaTarefa(fs)});
+function soltarEm(alvo,ok,fn){
+  alvo.addEventListener("dragover",e=>{if(!ok()||![...(e.dataTransfer?.types||[])].includes("Files"))return;e.preventDefault();alvo.classList.add("soltar")});
+  alvo.addEventListener("dragleave",()=>alvo.classList.remove("soltar"));
+  alvo.addEventListener("drop",e=>{alvo.classList.remove("soltar");if(!ok()||!e.dataTransfer?.files?.length)return;e.preventDefault();fn([...e.dataTransfer.files])})}
+soltarEm($("#tLinks"),()=>!$("#tAnxBtn").hidden&&!$("#tAnxRow").hidden,anexarNaTarefa);
 function addLink(){let u=$("#tLinkUrl").value.trim();if(!u){$("#tLinkUrl").focus();return}if(!/^https?:\/\//i.test(u))u="https://"+u;linkTmp.push({id:novoId(),nome:$("#tLinkNome").value.trim().slice(0,80),url:u.slice(0,1000)});$("#tLinkNome").value="";$("#tLinkUrl").value="";renderExtrasDlg(editT)}
 $("#tLinkAdd").addEventListener("click",addLink);$("#tLinkUrl").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addLink()}});
 $("#tSubs").addEventListener("change",async e=>{const c=e.target.closest("[data-subck]");if(!c)return;const x=todas().find(y=>y.id===c.dataset.subck);if(x)await moverTarefa(x,c.checked?"feito":"afazer");renderExtrasDlg(editT)});
@@ -1657,7 +1697,7 @@ $("#frmT").addEventListener("submit",async e=>{e.preventDefault();if(!podeEscrev
   if(!priv){if(rv.startsWith("u:"))respId=rv.slice(2);else if(rv.startsWith("n:"))respNome=rv.slice(2);else if(rv==="__outro")respNome=$("#tRespNome").value.trim()||null}
   const antes=editT,st=$("#tStatus").value;
   const t={...(antes||{id:novoId(),criadoPor:meuId||null,historico:[],arquivado:false}),_priv:priv,titulo:tt,descricao:$("#tDesc").value.trim(),projetoId:$("#tProj").value||null,status:st,prioridade:$("#tPrio").value,prazo:pz,inicio:ini,
-    aguardando:st==="aguardando"?($("#tWait").value.trim()||null):null,respId,respNome,campos:lerCamposDlg(antes?.campos),recorrencia:$("#tRep").value||null,paiId:$("#tPai").value||null,dependeDe:depTmp.filter(id=>todas().some(x=>x.id===id)),links:linkTmp,checklist:ckTmp.filter(x=>x.t&&x.t.trim()).map(x=>({id:x.id,t:x.t.trim(),ok:!!x.ok}))};
+    aguardando:st==="aguardando"?($("#tWait").value.trim()||null):null,respId,respNome,campos:lerCamposDlg(antes?.campos),recorrencia:$("#tRep").value||null,paiId:$("#tPai").value||null,dependeDe:depTmp.filter(id=>todas().some(x=>x.id===id)),links:linkTmp,anexos:anxTmp,checklist:ckTmp.filter(x=>x.t&&x.t.trim()).map(x=>({id:x.id,t:x.t.trim(),ok:!!x.ok}))};
   if(antes&&antes.status!==st){t.historico=[...(antes.historico||[]),{de:antes.status,para:st,em:new Date().toISOString(),por:meuId||null}];t.ordem=Date.now()}
   if(!antes)t.ordem=Date.now();
   if(!modoLocal&&((priv&&!colEu)||(!priv&&!colT))){toast("Carregando… tente de novo em alguns segundos");return}
@@ -1839,6 +1879,7 @@ function renderPagina(){
   $("#pgMover").hidden=!podeEscrever||(!colEu&&!modoLocal);$("#pgMover").textContent=pgAtual.esp==="p"?"Mover para o Time":"Mover para Pessoal";$("#pgExcluir").hidden=!podeEscrever||pgTrava;$("#pgVer").hidden=!hist;
   $("#modelos").hidden=!pode||!!ed.textContent.trim()||!!ed.querySelector("hr,table,li");
   if(!$("#modelos").hidden)$("#modelos").innerHTML=`<span>Começar com um modelo:</span>${Object.entries(MODELOS).map(([k,m])=>`<button class="btn sm" type="button" data-mod="${k}">${m.ic} ${m.nome}</button>`).join("")}`;
+  renderAnexosPg(p);
   const fs=filhos(ps,p.id);
   $("#subp").innerHTML=`${fs.length?`<h3>Páginas dentro desta</h3>`:""}${fs.map(f=>`<button type="button" class="ni" data-sub="${esc(f.id)}"><span class="ic">${esc(f.icone||"📄")}</span><span class="tx">${esc(f.titulo||"Sem título")}</span></button>`).join("")}${podeEscrever?`<div><button class="btn sm" type="button" id="pgSub">+ Nova página dentro desta</button></div>`:""}`;
 }
@@ -1863,6 +1904,29 @@ async function salvarPaginaAtual(){
   if(ok==="descartado"){pgSujo=false;if(pgAtual?.id===ref.id){pgCarregado=null;$("#pgSalvo").textContent="";render()}return}
   if(ok){pgVersao=pagDe(ref)?._versao??null;pgHtmlCarregado=html;const d=new Date();if(pgAtual?.id===ref.id)$("#pgSalvo").textContent=`Salvo às ${pad(d.getHours())}:${pad(d.getMinutes())}`;$("#crumbs span:last-child")&&($("#crumbs").lastElementChild.textContent=$("#pgTitulo").value.trim()||"Sem título")}
   else{pgSujo=true;if(pgAtual?.id===ref.id){$("#pgSalvo").textContent="Não salvou. Tentando de novo…";pgTimer=setTimeout(salvarPaginaAtual,5000)}}}
+function renderAnexosPg(p){
+  const el=$("#pgAnx"),l=p?.anexos||[],pode=editavel()&&!!anxNs;
+  el.hidden=!l.length&&!pode;if(el.hidden)return;
+  el.innerHTML=`<h3>📎 Anexos${l.length?` (${l.length})`:""}</h3><div class="lks">${htmlAnexos(l,pode,"p")}</div><div class="anxrow">${pode?`<button class="btn sm" type="button" id="pgAnxBtn">📎 Anexar arquivo</button><input type="file" id="pgAnxIn" multiple hidden><small>${anxPendente?"Enviando…":"PDF, foto, laudo, cotação… até 25 MB. Arraste aqui ou clique."}</small>`:!anxNs?`<small>Para abrir os arquivos, use a Central no navegador.</small>`:""}</div>`}
+async function mudarAnexosPg(fn){
+  const ref=pgAtual;if(!ref||!editavel())return false;if(pgSujo)await salvarPaginaAtual();
+  const p=pagDe(ref);if(!p)return false;const base={...p};if(pgVersao!=null)base._versao=pgVersao;else delete base._versao;
+  const ok=await salvarPag({...base,anexos:fn(p.anexos||[])},ref.esp);
+  if(ok===true&&pgAtual?.id===ref.id)pgVersao=pagDe(ref)?._versao??null;
+  if(vista==="pagina")renderPagina();return ok===true}
+async function anexarNaPagina(files){
+  const ref=pgAtual;if(!ref||!anxNs||!editavel()||!files?.length)return;
+  anxPendente++;renderAnexosPg(pagDe(ref));
+  const novos=await enviarAnexos(files,ref.esp==="p"?"pessoal":"paginas",ref.id);anxPendente--;
+  if(!novos.length){if(vista==="pagina")renderPagina();return}
+  if(await mudarAnexosPg(l=>[...l,...novos]))toast(novos.length===1?"Arquivo anexado":`${novos.length} arquivos anexados`)}
+$("#pgAnx").addEventListener("click",e=>{
+  const p=pagDe(pgAtual);if(!p)return;
+  const ab=e.target.closest("[data-pabre]");if(ab){abrirAnexo((p.anexos||[])[+ab.dataset.pabre]);return}
+  const ax=e.target.closest("[data-px]");if(ax){const a=(p.anexos||[])[+ax.dataset.px];if(a)mudarAnexosPg(l=>l.filter(x=>x.id!==a.id));return}
+  if(e.target.closest("#pgAnxBtn"))$("#pgAnxIn").click()});
+$("#pgAnx").addEventListener("change",e=>{if(e.target.id!=="pgAnxIn")return;const fs=[...e.target.files];e.target.value="";anexarNaPagina(fs)});
+soltarEm($("#pgAnx"),()=>editavel()&&!!anxNs,anexarNaPagina);
 async function flushPagina(){if(vista==="pagina"&&pgSujo)await salvarPaginaAtual();clearInterval(pgTravaTimer);pgCarregado=null;pgTrava=false;fecharSlash()}
 window.addEventListener("beforeunload",e=>{if(pgSujo){salvarPaginaAtual();e.preventDefault()}});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&pgSujo)salvarPaginaAtual()});
@@ -2416,6 +2480,7 @@ render();
   iniciarBackup();
   try{hist=await cUse("historico")}catch(e){hist=null}if(hist)render();
   try{avisosNs=await cUse("avisos")}catch(e){avisosNs=null}if(avisosNs){await carregarAvisos();avisosNs.ouvir(carregarAvisos)}
+  try{anxNs=await cUse("anexos")}catch(e){anxNs=null}if(anxNs)render();
 })();
 </script>
 
