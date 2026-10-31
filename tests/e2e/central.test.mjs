@@ -433,3 +433,36 @@ test("Gantt e carga: setas de dependência, marco, arrastar barra e carga por pe
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Métricas: período, tendência, desempenho por pessoa e projeto, planilha", async () => {
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const UID = "aaaaaaaa-0000-0000-0000-000000000001";
+  const doc = (colecao, doc_id, dados) => [colecao + "\u0000" + doc_id, { colecao, doc_id, dados: { _versao: 1, ...dados }, por: UID }];
+  const docs = Object.fromEntries([
+    doc("projetos", "pj", { nome: "Linha Kids", cor: "p2", status: "ativo", membros: [{ id: UID, papel: "dono" }], _papel: "dono" }),
+    // 60 dias atrás: fora dos 30 dias, dentro dos 90
+    doc("tarefas", "v", { tipo: "tarefa", titulo: "Antiga", status: "feito", respId: UID, criadoEm: iso(-64) + "T10:00:00Z", concluidoEm: iso(-60) + "T10:00:00Z", prazo: iso(-61) }),
+    doc("tarefas", "n1", { tipo: "tarefa", titulo: "No prazo", status: "feito", projetoId: "pj", respId: UID, criadoEm: iso(-6) + "T10:00:00Z", concluidoEm: iso(-2) + "T10:00:00Z", prazo: iso(-1) }),
+    doc("tarefas", "n2", { tipo: "tarefa", titulo: "Atrasou", status: "feito", projetoId: "pj", respId: UID, criadoEm: iso(-10) + "T10:00:00Z", concluidoEm: iso(-4) + "T10:00:00Z", prazo: iso(-8) }),
+    doc("tarefas", "ab", { tipo: "tarefa", titulo: "Aberta", status: "afazer", respId: UID, prazo: iso(-1) }),
+  ]);
+  const { page, ctx, erros } = await abrir({ semente: { docs, hist: [], seq: 0 } });
+  await page.click('[data-go="painel"]');
+  await page.locator("#painel .kpi", { hasText: "Concluídas em 30 dias" }).waitFor();
+  assert.match(await page.locator("#painel .kpi", { hasText: "Entregues no prazo" }).innerText(), /50%/);
+  const pessoa = page.locator("#painel .panel", { hasText: "Desempenho por pessoa" });
+  assert.match(await pessoa.locator("tbody tr").first().innerText(), /Você\s+2\s+50%\s+5 d\s+1\s+1/);
+  assert.equal(await page.locator("#painel .panel", { hasText: "Desempenho por projeto" }).locator("tr[data-p]").count(), 1);
+  assert.equal(await page.locator("#painel .panel", { hasText: "Entregues no prazo, por semana" }).locator("circle.pt").count() > 0, true);
+  // 90 dias inclui a antiga
+  await page.click('#painel [data-per="90"]');
+  await page.locator("#painel .kpi", { hasText: "Concluídas em 90 dias" }).waitFor();
+  assert.match(await page.locator("#painel .kpi", { hasText: "Concluídas em 90 dias" }).innerText(), /\n3\n/);
+  // planilha
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#pCsv")]);
+  const txt = fs.readFileSync(await dl.path(), "utf8");
+  assert.match(txt, /Tarefa;Projeto;Responsável/);
+  assert.match(txt, /Atrasou;Linha Kids;.*;não;6;/);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
