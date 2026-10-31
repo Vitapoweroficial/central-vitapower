@@ -857,7 +857,7 @@ $("#addPessoal").addEventListener("click",()=>criarPagina("p",null));
 $("#addTime").addEventListener("click",()=>criarPagina("t",null));
 
 /* ---------- render geral ---------- */
-const TITULOS={avisos:["Notificações","Quando alguém atribui uma tarefa a você, comenta no que é seu, menciona você com @ ou pede sua aprovação. Clique para abrir."],comando:["Central de Comando","Tudo o que está travado ou pedindo ação, no time inteiro. Clique num número para ver a lista e numa linha para abrir."],hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
+const TITULOS={avisos:["Notificações","Quando alguém atribui uma tarefa a você, comenta no que é seu, menciona você com @ ou pede sua aprovação, e os lembretes diários de prazo. Clique para abrir."],comando:["Central de Comando","Tudo o que está travado ou pedindo ação, no time inteiro. Clique num número para ver a lista e numa linha para abrir."],hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
 function render(){
   renderSide();
   const quadro=vista==="minhas"||vista==="time"||vista==="projeto",pag=vista==="pagina";
@@ -2001,19 +2001,22 @@ async function carregarLixeira(){if(!hist)return;lixItens=null;lixErro="";render
 /* ---------- notificações ---------- */
 let avisosNs=null,avisosL=[],avisoUlt=null;
 const TIPOS_AVISO={atribuida:["👤","atribuiu a você a tarefa"],comentario:["💬","comentou na tarefa"],mencao:["@","mencionou você em"],concluida:["✅","concluiu a tarefa"],
-  aprovacao:["📝","pediu sua aprovação no documento"],aprovacao_resposta:["📝","respondeu sua aprovação em"],projeto:["🗂️","adicionou você ao projeto"]};
+  aprovacao:["📝","pediu sua aprovação no documento"],aprovacao_resposta:["📝","respondeu sua aprovação em"],projeto:["🗂️","adicionou você ao projeto"],
+  prazo:["⏰","vence hoje"],atrasada:["🔴","está atrasada"],lembrete_aprovacao:["📝","espera sua aprovação"]};
+const LEMBRETES=new Set(["prazo","atrasada","lembrete_aprovacao"]);
 const naoLidas=()=>avisosL.filter(n=>!n.lida_em);
 async function carregarAvisos(){if(!avisosNs)return;let l;try{l=await avisosNs.listar()}catch(e){return}
   const novas=l.filter(n=>!n.lida_em&&avisoUlt!==null&&n.id>avisoUlt);avisoUlt=l.reduce((m,n)=>Math.max(m,n.id),avisoUlt||0);avisosL=l;
   if(novas.length)toast(`🔔 ${frasesAviso(novas[0]).replace(/<[^>]+>/g,"")}`,4000);
   renderSide();if(vista==="avisos")renderAvisos()}
-function frasesAviso(n){const quem=n.por?(n.por===meuId?"Você":esc(nomesU[n.por]||"Alguém do time")):"Alguém";const [ic,acao]=TIPOS_AVISO[n.tipo]||["🔔","atualizou"];
+function frasesAviso(n){if(LEMBRETES.has(n.tipo)){const [,acao]=TIPOS_AVISO[n.tipo];return `${n.tipo==="lembrete_aprovacao"?"O documento":"A tarefa"} <b>${esc(n.titulo||"(sem título)")}</b> ${acao}`}
+  const quem=n.por?(n.por===meuId?"Você":esc(nomesU[n.por]||"Alguém do time")):"Alguém";const [ic,acao]=TIPOS_AVISO[n.tipo]||["🔔","atualizou"];
   const verbo=n.tipo==="aprovacao_resposta"?`${esc(n.trecho||"respondeu")} em`:acao;
   return `<b>${quem}</b> ${verbo} <b>${esc(n.titulo||"(sem título)")}</b>`}
 function renderAvisos(){const el=$("#avisos"),nl=naoLidas().length;
   el.innerHTML=`<div class="avh"><span class="sub">${nl?`${nl} não lida${nl>1?"s":""}`:"Tudo lido"}</span>${nl?`<button class="btn sm" type="button" id="avTodas">Marcar todas como lidas</button>`:""}</div>`+
     (avisosL.length?avisosL.map(n=>`<button type="button" class="avi ${n.lida_em?"":"nova"}" data-av="${n.id}"><span class="avic">${(TIPOS_AVISO[n.tipo]||["🔔"])[0]}</span><span class="avt"><span>${frasesAviso(n)}</span>${n.trecho&&n.tipo!=="aprovacao_resposta"?`<span class="avtr">${esc(n.trecho)}</span>`:""}</span><small>${fmtDT(n.em)}</small></button>`).join("")
-      :`<div class="empty">Nenhuma notificação ainda. Quando alguém atribuir uma tarefa a você, comentar no que é seu ou mencionar você com @, aparece aqui.</div>`)}
+      :`<div class="empty">Nenhuma notificação ainda. Quando alguém atribuir uma tarefa a você, comentar no que é seu ou mencionar você com @, aparece aqui. Todo dia às 8h chegam também os lembretes do que vence hoje, do que atrasou e das aprovações paradas.</div>`)}
 async function lerAvisos(ids){const alvo=ids?avisosL.filter(n=>ids.includes(n.id)):avisosL;const agora=new Date().toISOString();alvo.forEach(n=>{if(!n.lida_em)n.lida_em=agora});renderSide();if(vista==="avisos")renderAvisos();
   try{await avisosNs.marcarLidas(ids||null)}catch(e){}}
 $("#avisos").addEventListener("click",async e=>{if(e.target.closest("#avTodas")){lerAvisos();return}const b=e.target.closest("[data-av]");if(!b)return;const n=avisosL.find(x=>x.id===+b.dataset.av);if(!n)return;
