@@ -16,14 +16,14 @@
   const pronto = new Promise((r) => (liberar = r));
 
   /* ---------- tela de entrada ---------- */
-  const css = `#cx{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#f6f5f2;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1d1d1f;padding:16px}
-#cx .cx-c{width:100%;max-width:380px;background:#fff;border:1px solid #e6e3dc;border-radius:16px;padding:28px 24px;box-shadow:0 8px 30px rgba(0,0,0,.06)}
-#cx h1{font-size:20px;margin:0 0 4px}#cx p{margin:0 0 16px;color:#5f5d58}#cx label{display:block;font-size:13px;color:#5f5d58;margin-bottom:4px}
-#cx input{width:100%;box-sizing:border-box;font:inherit;padding:11px 12px;border:1px solid #d9d5cc;border-radius:10px;margin-bottom:12px;background:#fff;color:inherit}
-#cx button{width:100%;font:inherit;font-weight:600;padding:11px;border:0;border-radius:10px;background:#1f6f54;color:#fff;cursor:pointer}
-#cx button:disabled{opacity:.6;cursor:default}#cx .cx-m{font-size:13px;margin-top:12px;min-height:18px;color:#5f5d58}#cx .cx-m.err{color:#b3261e}
-#cx .cx-l{background:none;color:#1f6f54;padding:6px;margin-top:6px;font-weight:500}
-@media (prefers-color-scheme:dark){#cx{background:#161615;color:#eee}#cx .cx-c{background:#1f1f1e;border-color:#333}#cx input{background:#161615;border-color:#3a3a38}#cx p,#cx label,#cx .cx-m{color:#aaa}}
+  const css = `#cx{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#F7F7F8;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#171F26;padding:16px}
+#cx .cx-c{width:100%;max-width:380px;background:#fff;border:1px solid #DFE2E6;border-radius:16px;padding:28px 24px;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+#cx h1{font-size:20px;margin:0 0 4px}#cx p{margin:0 0 16px;color:#5A636C}#cx label{display:block;font-size:13px;color:#5A636C;margin-bottom:4px}
+#cx input{width:100%;box-sizing:border-box;font:inherit;padding:11px 12px;border:1px solid #DFE2E6;border-radius:10px;margin-bottom:12px;background:#fff;color:inherit}
+#cx button{width:100%;font:inherit;font-weight:600;padding:11px;border:0;border-radius:10px;background:#171F26;color:#fff;cursor:pointer}
+#cx button:disabled{opacity:.6;cursor:default}#cx .cx-m{font-size:13px;margin-top:12px;min-height:18px;color:#5A636C}#cx .cx-m.err{color:#b3261e}
+#cx .cx-l{background:none;color:#C4222A;padding:6px;margin-top:6px;font-weight:500}
+@media (prefers-color-scheme:dark){#cx{background:#12171C;color:#E9ECEF}#cx button{background:#E9ECEF;color:#171F26}#cx .cx-l{background:none;color:#E0474E}#cx .cx-c{background:#1A2128;border-color:#2A323A}#cx input{background:#151B21;border-color:#2A323A}#cx p,#cx label,#cx .cx-m{color:#aaa}}
 button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity:.7;background:none!important;border:0!important;box-shadow:none!important;padding:0!important;min-height:0!important;cursor:pointer;text-decoration:underline}`;
   function tela(html) {
     let el = document.getElementById("cx");
@@ -31,7 +31,7 @@ button.cx-sair{display:block;margin-top:2px;font-size:12px;color:inherit;opacity
       const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
       el = document.createElement("div"); el.id = "cx"; document.body.appendChild(el);
     }
-    el.innerHTML = `<div class="cx-c"><div style="font-size:26px">✦</div>${html}</div>`;
+    el.innerHTML = `<div class="cx-c"><div style="width:28px;height:4px;border-radius:2px;background:#C4222A;margin-bottom:14px"></div>${html}</div>`;
     return el;
   }
   const fecharTela = () => document.getElementById("cx")?.remove();
