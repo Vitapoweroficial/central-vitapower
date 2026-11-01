@@ -497,6 +497,16 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
 .iaf{display:flex;gap:8px;padding:10px 14px 14px;align-items:flex-end}
 .iaf textarea{resize:none;min-height:42px;max-height:140px}
 .btn.ia-b{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 55%,var(--p3)));color:var(--accent-fg);border-color:transparent}
+#iaHist{width:auto;max-width:150px;padding:5px 6px;font-size:12.5px}
+.perg{display:grid;gap:10px}
+.perg .pq{display:grid;gap:5px;font-size:13px;color:var(--fg)}
+.perg .pq>span{font-weight:600}
+.perg .pq input[type=date],.perg .pq select,.perg .pq input[type=text],.perg .pq input[type=number]{width:auto;max-width:100%;padding:6px 8px;font-size:13px}
+.perg .ops{display:flex;gap:6px;flex-wrap:wrap}
+.perg .ops label{display:inline-flex;grid-template-columns:none;gap:5px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12.5px;cursor:pointer;background:var(--surface)}
+.perg .ops label:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.perg .ops input{position:absolute;opacity:0;pointer-events:none;width:1px}
+.perg .datas{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .iaanx{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px 0}
 .iaanx span{display:inline-flex;align-items:center;gap:4px;font-size:12px;background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;max-width:100%}
 .iaanx span b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
@@ -722,7 +732,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
   </form>
 </dialog>
 <aside class="ia" id="ia" aria-label="Assistente" aria-hidden="true">
-  <div class="iah"><span style="font-size:20px">✨</span><b>Assistente<small>Lê suas tarefas e projetos. Nada muda sem você aplicar.</small></b><button class="btn sm" type="button" id="iaNovo" title="Começar uma conversa nova">Nova conversa</button><button class="xbtn" type="button" id="iaX" aria-label="Fechar assistente">×</button></div>
+  <div class="iah"><span style="font-size:20px">✨</span><b>Assistente<small>Lê suas tarefas e projetos. Nada muda sem você aplicar.</small></b><select id="iaHist" aria-label="Conversas de hoje" title="Conversas de hoje (ficam guardadas até o fim do dia)" hidden></select><button class="btn sm" type="button" id="iaNovo" title="Começar uma conversa nova">Nova conversa</button><button class="xbtn" type="button" id="iaX" aria-label="Fechar assistente">×</button></div>
   <div class="iam" id="iaMsgs" aria-live="polite"></div>
   <div class="iasug" id="iaSug"></div>
   <div class="iaanx" id="iaAnx" hidden></div><form class="iaf" id="iaForm" autocomplete="off"><button class="btn" type="button" id="iaClip" title="Anexar foto, print ou PDF" aria-label="Anexar arquivo" hidden>📎</button><input type="file" id="iaArq" multiple hidden><textarea id="iaTexto" rows="1" placeholder="Peça algo ao assistente…" aria-label="Mensagem para o assistente"></textarea><button class="btn primary" type="submit" id="iaEnviar">Enviar</button><button class="btn" type="button" id="iaParar" hidden>Parar</button></form>
@@ -2288,10 +2298,25 @@ $("#pgVer").addEventListener("click",async()=>{const ref=pgAtual,p=pagDe(ref);if
 let iaSample=null,iaTurnos=[],iaCtl=null,iaOcupado=false;
 const iaMsgs=$("#iaMsgs");
 const isoOk=v=>typeof v==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v)?v:null;
-function iaAbrir(texto){$("#ia").classList.add("on");$("#ia").setAttribute("aria-hidden","false");$("#app").classList.remove("aberta");if(!iaMsgs.children.length)iaBoasVindas();iaSugestoes();if(texto)$("#iaTexto").value=texto;setTimeout(()=>{const x=$("#iaTexto");x.focus();x.setSelectionRange(x.value.length,x.value.length)},60)}
+function iaAbrir(texto){$("#ia").classList.add("on");$("#ia").setAttribute("aria-hidden","false");$("#app").classList.remove("aberta");if(!iaCarregou){iaCarregar();iaMostrarConv()}else if(!iaMsgs.children.length)iaMostrarConv();iaSugestoes();if(texto)$("#iaTexto").value=texto;setTimeout(()=>{const x=$("#iaTexto");x.focus();x.setSelectionRange(x.value.length,x.value.length)},60)}
 function iaFechar(){$("#ia").classList.remove("on");$("#ia").setAttribute("aria-hidden","true")}
-function iaBolha(quem,tx){const d=document.createElement("div");d.className="msg "+quem;d.textContent=tx;iaMsgs.appendChild(d);iaMsgs.scrollTop=iaMsgs.scrollHeight;return d}
-function iaBoasVindas(){iaBolha("bot","Oi! Eu leio suas tarefas e projetos e posso:\n- ler fotos, prints e PDFs (cotações, formulações, briefings) e transformar em página com tabela ou em projeto: arraste o arquivo para cá ou use o 📎\n- montar um projeto inteiro, com tarefas e prazos, a partir de uma frase\n- resumir a semana e apontar o que está atrasado ou parado\n- dizer o que priorizar hoje\n- reorganizar prazos e prioridades\n- ser o gestor de um projeto: vejo a linha do tempo e a carga da equipe, pergunto as datas de entrega e encaixo as tarefas no calendário, com responsáveis sugeridos (botão 🧭)\n- editar a página aberta (ou outra que já existe): completar, corrigir, virar tabela ou checklist, sem criar outra\n- procurar em documentos, comentários e histórico, comentar e marcar pessoas com @, e pedir aprovação de documentos\nQuando eu sugerir mudanças, você revisa e clica em Aplicar.")}
+function iaBolha(quem,tx,naoGuardar){const d=document.createElement("div");d.className="msg "+quem;d.textContent=tx;iaMsgs.appendChild(d);iaMsgs.scrollTop=iaMsgs.scrollHeight;if(!naoGuardar&&!/pens/.test(quem))iaGuardar({k:"msg",quem,tx});return d}
+/* conversas do assistente: ficam guardadas neste aparelho até o fim do dia (trocar de conversa, fechar ou recarregar não perde nada) */
+let iaConvs=[],iaConvId=null,iaRepondo=false,iaCarregou=false;
+function iaTurno(...ms){iaTurnos.push(...ms);if(iaTurnos.length>16)iaTurnos.splice(0,iaTurnos.length-16);const c=iaConvAtual();c.turnos=iaTurnos;iaSalvarConvs()}
+const iaChave=()=>"ia-conversas-"+(meuId||"anon");
+function iaCarregar(){iaCarregou=true;const d=lsGet(iaChave(),null);iaConvs=d&&d.dia===hoje()&&Array.isArray(d.convs)?d.convs:[];iaConvId=iaConvs.length?iaConvs[iaConvs.length-1].id:null}
+function iaSalvarConvs(){let cs=iaConvs.filter(c=>c.itens.length).slice(-15);while(cs.length>1&&!lsSet(iaChave(),{dia:hoje(),convs:cs}))cs=cs.slice(1);if(cs.length<=1)lsSet(iaChave(),{dia:hoje(),convs:cs})}
+function iaConvAtual(){
+  let c=iaConvs.find(x=>x.id===iaConvId);if(!c){c={id:novoId(),inicio:new Date().toISOString(),titulo:"",itens:[],turnos:[]};iaConvs.push(c);iaConvId=c.id}return c}
+function iaGuardar(it){if(iaRepondo)return null;const c=iaConvAtual();if(!c.titulo&&it.k==="msg"&&it.quem==="eu")c.titulo=it.tx.split("\n")[0].slice(0,60);c.itens.push(it);iaSalvarConvs();iaHistUI();return it}
+function iaHistUI(){const sel=$("#iaHist"),cs=iaConvs.filter(c=>c.itens.length);sel.hidden=!cs.length;if(!cs.length)return;
+  const hm=x=>{const d=new Date(x);return pad(d.getHours())+":"+pad(d.getMinutes())};
+  sel.innerHTML=`<option value="" disabled>Conversas de hoje</option>`+cs.slice().reverse().map(c=>`<option value="${esc(c.id)}">${hm(c.inicio)} · ${esc(c.titulo||"Conversa")}</option>`).join("")+(cs.some(c=>c.id===iaConvId)?"":`<option value="${esc(iaConvId||"")}">Nova conversa</option>`);sel.value=iaConvId||""}
+function iaMostrarConv(){iaMsgs.innerHTML="";iaBoasVindas();const c=iaConvs.find(x=>x.id===iaConvId);iaTurnos=c?c.turnos:[];
+  if(c){iaRepondo=true;try{c.itens.forEach(it=>{if(it.k==="msg")iaBolha(it.quem,it.tx,true);else if(it.k==="plano")iaPlano(it.acoes,it);else if(it.k==="perg")iaPerguntas(it.perguntas,it)})}finally{iaRepondo=false}}
+  iaHistUI();iaMsgs.scrollTop=iaMsgs.scrollHeight}
+function iaBoasVindas(){iaBolha("bot","Oi! Eu leio suas tarefas e projetos e posso:\n- ler fotos, prints e PDFs (cotações, formulações, briefings) e transformar em página com tabela ou em projeto: arraste o arquivo para cá ou use o 📎\n- montar um projeto inteiro, com tarefas e prazos, a partir de uma frase\n- resumir a semana e apontar o que está atrasado ou parado\n- dizer o que priorizar hoje\n- reorganizar prazos e prioridades\n- ser o gestor de um projeto: vejo a linha do tempo e a carga da equipe, pergunto as datas de entrega e encaixo as tarefas no calendário, com responsáveis sugeridos (botão 🧭)\n- editar a página aberta (ou outra que já existe): completar, corrigir, virar tabela ou checklist, sem criar outra\n- procurar em documentos, comentários e histórico, comentar e marcar pessoas com @, e pedir aprovação de documentos\nQuando eu sugerir mudanças, você revisa e clica em Aplicar.",true)}
 function iaSugestoes(){const p=vista==="projeto"?projDe(projAberto):null;
   const l=[["📋 Resumo da semana","Faça um resumo da minha semana: o que foi concluído, o que está atrasado, o que está parado aguardando e os riscos dos projetos."],["🎯 O que priorizar hoje?","O que eu devo priorizar hoje? Me dê uma lista curta e ordenada, com o motivo de cada item."],["🗓️ Reorganizar atrasadas","Proponha novos prazos realistas para as tarefas atrasadas, distribuindo ao longo das próximas duas semanas sem sobrecarregar nenhum dia."],["🚀 Montar um projeto",null]];
   if(p)l.unshift([`🧭 Organizar “${p.nome}”`,`Seja o gestor do projeto “${p.nome}” (id ${p.id}). Veja a linha do tempo, os marcos, as dependências e a carga da equipe. Se faltar alguma data de entrega ou informação importante, me pergunte primeiro. Depois encaixe as tarefas no calendário com início e prazo, prioridades, dependências e responsáveis sugeridos, sem sobrecarregar ninguém, e acrescente o que faltar para cumprir as entregas.`]);
@@ -2336,7 +2361,8 @@ function iaFerramentas(){
         return {pessoa:nomeDe(id),abertas:ts.length-f.length,concluidas:f.length,no_prazo:cp.length?`${ok} de ${cp.length}`:null,ultimas:f.slice(0,20).map(t=>({titulo:t.titulo,projeto:projDe(t.projetoId)?.nome||null,concluida:(t.concluidoEm||"").slice(0,10),prazo:t.prazo||null}))}}}]}
 function iaRegras(){return `Você é o assistente do app de tarefas e projetos da VitaPower, empresa brasileira de suplementos e nutrição. Responda sempre em português do Brasil, de forma direta e prática.
 Você recebe um resumo do estado atual do app em JSON e o pedido da pessoa. Quando houver ferramentas de consulta (buscar, ver_tarefa, ver_pagina, ver_projeto, carga_equipe, historico_pessoa), use-as para ver o que o resumo não traz: documentos, comentários, histórico, tarefas concluídas, a linha do tempo completa de um projeto e a carga de cada pessoa. Consulte só o necessário (poucas chamadas). No fim, responda SOMENTE com um objeto JSON neste formato:
-{"resposta": "texto para a pessoa; listas com linhas começando por '- '; sem markdown além disso", "acoes": []}
+{"resposta": "texto para a pessoa; listas com linhas começando por '- '; sem markdown além disso", "acoes": [], "perguntas": []}
+PERGUNTAS: sempre que precisar perguntar algo, coloque as perguntas em "perguntas" (a pessoa responde clicando, sem precisar escrever) e deixe "acoes" vazio; na "resposta" escreva só uma frase curta de introdução, sem repetir as perguntas. Formato de cada pergunta: {"texto":"pergunta curta","tipo":"data|pessoa|pessoas|opcao|opcoes|numero|texto","opcoes":["só para opcao (uma escolha) e opcoes (várias)"]}. Use "data" para prazos e datas (abre um calendário), "pessoa"/"pessoas" para responsáveis (lista do time), "opcao"/"opcoes" quando der para prever as respostas (dê de 2 a 6 opções curtas; a pessoa ainda pode escrever outra), "numero" para quantidades e "texto" só quando não houver alternativa. No máximo 6 perguntas por vez. As respostas chegam como "Respostas:" com cada pergunta, a resposta e, para pessoas e datas, o id e a data AAAA-MM-DD.
 "acoes" fica vazio quando o pedido é só uma pergunta ou análise. Quando o pedido pede para criar ou mudar algo, proponha as ações (a pessoa revisa antes de aplicar). Tipos de ação:
 {"tipo":"criar_projeto","ref":"P1","nome":"...","descricao":"...","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","entregas":["marco 1","marco 2"]}
 {"tipo":"criar_tarefa","titulo":"...","descricao":"...","projeto":"id de projeto existente, ou a ref de um criar_projeto desta resposta, ou null","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","status":"afazer|fazendo|aguardando","checklist":["passo"],"visibilidade":"eu|time"}
@@ -2352,7 +2378,7 @@ FORMATAÇÃO das páginas (criar_pagina e editar_pagina): você pode deixar a p�
 Quando a pessoa enviar arquivos (fotos, prints ou PDF de cotação, formulação, briefing, nota ou planilha): leia tudo com atenção e transcreva fielmente, sem inventar nada; nomes, números, unidades, preços e datas exatamente como no arquivo; se algo estiver ilegível, escreva [ilegível]. Cotação, formulação, lista de itens ou qualquer tabela vira criar_pagina com a tabela completa em <table> (todas as linhas) e, antes dela, um resumo curto (fornecedor, data, validade, condições de pagamento, frete e totais quando existirem). Se o arquivo descrever um projeto, lançamento ou plano com etapas, proponha também criar_projeto com as tarefas. Na dúvida, crie a página. Use "espaco":"time" salvo se a pessoa pedir que seja só dela.
 Quando pedirem para organizar, planejar ou gerir projetos e tarefas, atue como gestor de projetos:
 1. Veja a situação: ver_projeto (linha do tempo, marcos, dependências), carga_equipe e, para escolher responsáveis, historico_pessoa.
-2. Se faltar informação essencial, PERGUNTE antes de propor (até 5 perguntas objetivas e numeradas, sem ações): data de entrega do projeto e dos marcos; o que tem data fixa ou precisa acontecer no mesmo dia; quanto tempo as tarefas maiores levam; quem não pode assumir algo. Não invente datas de entrega.
+2. Se faltar informação essencial, PERGUNTE antes de propor (até 5 perguntas objetivas em "perguntas", sem ações): data de entrega do projeto e dos marcos; o que tem data fixa ou precisa acontecer no mesmo dia; quanto tempo as tarefas maiores levam; quem não pode assumir algo. Não invente datas de entrega.
 3. Com as respostas, proponha o cronograma: cada tarefa com início e prazo em dias úteis; uma tarefa só começa depois que terminam as que ela depende (crie as dependências que faltam); prioridade alta e o caminho crítico primeiro; o que é independente roda em paralelo; cumpra as datas dos marcos e do projeto, deixando folga antes das entregas; ninguém acima do limite semanal de tarefas; sugira o responsável de cada tarefa pela carga e pelo que a pessoa já entregou; acrescente tarefas que faltam; ajuste prioridades.
 4. Na "resposta", explique em poucas linhas: o caminho crítico, as folgas, os riscos (o que não cabe no prazo e o que você sugere) e por que escolheu cada responsável.
 Regras: use só ids que aparecem no estado ou nas consultas; em "mudancas" inclua só o que muda; nunca exclua nada; datas a partir de hoje (${hoje()}), evitando sábados e domingos; ao montar um projeto, quebre em 6 a 15 tarefas concretas com prazos escalonados e coerentes com o prazo do projeto; use "visibilidade":"time" para tarefas de projetos do time; no máximo 60 ações; na "resposta" explique em poucas linhas o que propôs.`}
@@ -2368,8 +2394,9 @@ async function iaEnviar(txt){
   const comFerr=!!iaLim?.tools,ferr=comFerr?iaFerramentas().map(f=>({...f,execute:a=>{pens.textContent={buscar:"Procurando…",ver_tarefa:"Lendo a tarefa…",ver_pagina:"Lendo o documento…",ver_projeto:"Vendo a linha do tempo…",carga_equipe:"Vendo a carga da equipe…",historico_pessoa:"Vendo o histórico…"}[f.name]||"Consultando…";try{return f.execute(a||{})}catch(e){return {erro:"não consegui consultar"}}}})):null;
   try{const r=await iaSample.json(turnos,{cache:false,signal:iaCtl.signal,...(imgs.length?{images:imgs}:{}),...(ferr?{tools:ferr}:{})});
     const resp=String((r&&r.resposta)||"").trim()||"Pronto.",acoes=Array.isArray(r&&r.acoes)?r.acoes.filter(a=>a&&typeof a==="object").slice(0,60):[];
-    pens.remove();iaBolha("bot",resp);const n=acoes.length?iaPlano(acoes):0;
-    iaTurnos.push({role:"user",content:txt+(anx.length?` (com o arquivo ${anx.map(f=>f.name).join(", ")})`:"")},{role:"assistant",content:resp+(n?`\n(Propus ${n} ações para a pessoa revisar.)`:"")});
+    const perg=Array.isArray(r&&r.perguntas)?r.perguntas.filter(p=>p&&typeof p==="object"&&p.texto).slice(0,8):[];
+    pens.remove();iaBolha("bot",resp);const n=acoes.length?iaPlano(acoes):0;if(perg.length)iaPerguntas(perg);
+    iaTurno({role:"user",content:txt+(anx.length?` (com o arquivo ${anx.map(f=>f.name).join(", ")})`:"")},{role:"assistant",content:resp+(perg.length?"\nPerguntas: "+perg.map((p,i)=>`${i+1}. ${p.texto}`).join(" "):"")+(n?`\n(Propus ${n} ações para a pessoa revisar.)`:"")});
   }catch(e){pens.remove();if(!(e&&e.code==="cancelled"))iaBolha("bot erro",iaErro(e))}
   finally{iaOcupado=false;iaCtl=null;iaSync();$("#iaTexto").focus()}}
 function iaDescr(a,refs){
@@ -2392,19 +2419,21 @@ function iaDescr(a,refs){
     (Array.isArray(a.marcos)?a.marcos:[]).forEach(x=>{if(x&&x.texto&&isoOk(x.data))ps.push(`marco “${x.texto}” em ${fmtData(x.data)}`)});if(!ps.length)return null;return ["🗂️","Alterar projeto",`${p.nome}: ${ps.join(", ")}`]}
   if(a.tipo==="pedir_aprovacao"){const g=pagT.find(x=>x.id===a.pagina);if(!g||!a.por)return null;return ["👀","Pedir aprovação",`${g.titulo||"Sem título"} → ${nomeDe(a.por)}`]}
   return null}
-function iaPlano(acoes){
+function iaPlano(acoes,reg){
+  reg=reg||iaGuardar({k:"plano",acoes,estado:"aberto"})||{acoes,estado:"aberto"};const salvarReg=(estado,res)=>{reg.estado=estado;reg.res=res;iaSalvarConvs()};
   const refs={};acoes.forEach(a=>{if(a.tipo==="criar_projeto"&&a.ref)refs[a.ref]=String(a.nome||"novo projeto")});
   const it=acoes.map(a=>({a,d:iaDescr(a,refs)})).filter(x=>x.d);if(!it.length)return 0;
   const box=document.createElement("div");box.className="plano";
   box.innerHTML=`<h4><span>Mudanças propostas (${it.length})</span><button class="mv" type="button" data-pl="todas">Desmarcar todas</button></h4>${it.map((x,i)=>`<label><input type="checkbox" checked data-i="${i}"><i>${x.d[0]}</i><span><small>${esc(x.d[1])}</small>${esc(x.d[2])}</span></label>`).join("")}
-    <div class="actions">${podeEscrever?`<button class="btn sm" type="button" data-pl="desc">Descartar</button><button class="btn sm primary" type="button" data-pl="ok">Aplicar selecionadas</button>`:`<span class="lock">Você só pode ver: peça acesso de editor para aplicar.</span>`}</div>`;
+    <div class="actions">${reg.estado!=="aberto"?`<span class="lock">${esc(reg.res||"")}</span>`:podeEscrever?`<button class="btn sm" type="button" data-pl="desc">Descartar</button><button class="btn sm primary" type="button" data-pl="ok">Aplicar selecionadas</button>`:`<span class="lock">Você só pode ver: peça acesso de editor para aplicar.</span>`}</div>`;
   box.addEventListener("click",async e=>{const b=e.target.closest("[data-pl]");if(!b)return;const k=b.dataset.pl;
     if(k==="todas"){const cs=[...box.querySelectorAll("[data-i]")],tem=cs.some(c=>c.checked);cs.forEach(c=>c.checked=!tem);b.textContent=tem?"Marcar todas":"Desmarcar todas";return}
-    if(k==="desc"){box.classList.add("feito");box.querySelector(".actions").innerHTML=`<span class="lock">Descartado.</span>`;box.querySelectorAll("input").forEach(c=>c.disabled=true);return}
+    if(k==="desc"){box.classList.add("feito");box.querySelector(".actions").innerHTML=`<span class="lock">Descartado.</span>`;box.querySelectorAll("input").forEach(c=>c.disabled=true);salvarReg("descartado","Descartado.");return}
     if(k==="ok"){const sel=[...box.querySelectorAll("[data-i]:checked")].map(c=>it[+c.dataset.i].a);if(!sel.length){toast("Marque ao menos uma mudança");return}
       box.querySelectorAll("button,input").forEach(c=>c.disabled=true);b.textContent="Aplicando…";
-      const r=await iaAplicar(sel);box.classList.add("feito");box.querySelector(".actions").innerHTML=`<span class="lock">${r.ok} ${plural(r.ok,"mudança aplicada","mudanças aplicadas")}${r.f?` · ${r.f} não puderam ser salvas`:""}.</span>`;
-      iaTurnos.push({role:"user",content:`(A pessoa aplicou ${r.ok} das ações propostas.)`},{role:"assistant",content:"Certo."})}});
+      const r=await iaAplicar(sel),rt=`${r.ok} ${plural(r.ok,"mudança aplicada","mudanças aplicadas")}${r.f?` · ${r.f} não puderam ser salvas`:""}.`;box.classList.add("feito");box.querySelector(".actions").innerHTML=`<span class="lock">${esc(rt)}</span>`;
+      salvarReg("aplicado",rt);iaTurno({role:"user",content:`(A pessoa aplicou ${r.ok} das ações propostas.)`},{role:"assistant",content:"Certo."})}});
+  if(reg.estado!=="aberto"){box.classList.add("feito");box.querySelectorAll("input,button").forEach(c=>c.disabled=true)}
   iaMsgs.appendChild(box);iaMsgs.scrollTop=iaMsgs.scrollHeight;return it.length}
 /* edita uma página que já existe (a aberta ou outra); a página aberta é recarregada na tela */
 async function iaEditarPagina(a){
@@ -2419,6 +2448,33 @@ async function iaEditarPagina(a){
   const r=await salvarPag(n,esp);if(r!==true)return false;
   if(aberta){pgCarregado=null;pgSujo=false;render()}
   return true}
+/* perguntas do assistente com campos para clicar: calendário, pessoas, opções */
+function iaPerguntas(perg,reg){
+  reg=reg||iaGuardar({k:"perg",perguntas:perg,estado:"aberto"})||{perguntas:perg,estado:"aberto"};
+  const pes=iaPessoas(),box=document.createElement("form");box.className="plano perg";box.noValidate=true;
+  const campo=(p,i)=>{const t=p.tipo,ops=(Array.isArray(p.opcoes)?p.opcoes:[]).map(String).slice(0,12),n="pq"+i;
+    if(t==="data")return `<div class="datas"><input type="date" name="${n}" min="${hoje()}">${[[0,"Hoje"],[7,"+1 semana"],[14,"+2 semanas"],[30,"+1 mês"]].map(([d,l])=>`<button type="button" class="mv" data-dt="${n}" data-v="${addDias(hoje(),d)}">${l}</button>`).join("")}</div>`;
+    if(t==="pessoa")return `<select name="${n}"><option value="">Escolha…</option>${pes.map(x=>`<option value="${esc(x.id)}">${esc(x.nome)}</option>`).join("")}</select>`;
+    if(t==="pessoas")return `<div class="ops">${pes.map(x=>`<label><input type="checkbox" name="${n}" value="${esc(x.id)}">${esc(x.nome)}</label>`).join("")}</div>`;
+    if((t==="opcao"||t==="opcoes")&&ops.length)return `<div class="ops">${ops.map(o=>`<label><input type="${t==="opcoes"?"checkbox":"radio"}" name="${n}" value="${esc(o)}">${esc(o)}</label>`).join("")}</div><input type="text" name="${n}_outro" placeholder="Outra resposta (opcional)">`;
+    if(t==="numero")return `<input type="number" name="${n}" step="any">`;
+    return `<input type="text" name="${n}" placeholder="Sua resposta">`};
+  box.innerHTML=`<h4><span>Responda clicando</span></h4>${perg.map((p,i)=>`<div class="pq"><span>${i+1}. ${esc(String(p.texto))}</span>${campo(p,i)}</div>`).join("")}<div class="actions">${reg.estado!=="aberto"?`<span class="lock">Respondido.</span>`:`<button class="btn sm" type="button" data-pl="pular">Responder escrevendo</button><button class="btn sm primary" type="submit">Enviar respostas</button>`}</div>`;
+  box.addEventListener("click",e=>{const b=e.target.closest("[data-dt]");if(b){box.elements[b.dataset.dt].value=b.dataset.v;return}
+    if(e.target.closest('[data-pl="pular"]'))$("#iaTexto").focus()});
+  box.addEventListener("submit",e=>{e.preventDefault();if(iaOcupado||reg.estado!=="aberto")return;
+    const nomeP=id=>pes.find(x=>x.id===id)?.nome||id;
+    const linhas=perg.map((p,i)=>{const n="pq"+i,els=[...box.querySelectorAll(`[name="${n}"]`)];let v;
+      if(p.tipo==="pessoas"||p.tipo==="opcoes")v=els.filter(x=>x.checked).map(x=>p.tipo==="pessoas"?`${nomeP(x.value)} (id ${x.value})`:x.value);
+      else if(p.tipo==="opcao")v=els.filter(x=>x.checked).map(x=>x.value);
+      else{const x=els[0]?.value||"";v=x?[p.tipo==="data"?`${fmtData(x)} (${x})`:p.tipo==="pessoa"?`${nomeP(x)} (id ${x})`:x]:[]}
+      const o=box.elements[n+"_outro"]?.value?.trim();if(o)v.push(o);
+      return `${i+1}. ${p.texto} → ${v.length?v.join(", "):"(sem resposta)"}`});
+    if(linhas.every(l=>/\(sem resposta\)$/.test(l))){toast("Responda ao menos uma pergunta");return}
+    reg.estado="respondido";iaSalvarConvs();box.classList.add("feito");box.querySelectorAll("input,select,button").forEach(c=>c.disabled=true);box.querySelector(".actions").innerHTML=`<span class="lock">Respondido.</span>`;
+    iaEnviar("Respostas:\n"+linhas.join("\n"))});
+  if(reg.estado!=="aberto"){box.classList.add("feito");box.querySelectorAll("input,select,button").forEach(c=>c.disabled=true)}
+  iaMsgs.appendChild(box);iaMsgs.scrollTop=iaMsgs.scrollHeight}
 async function iaAplicar(acoes){
   const mapa={};let ok=0,f=0,np=0;const podeEu=modoLocal||!!colEu;
   let pgNova=null;
@@ -2498,7 +2554,8 @@ document.addEventListener("dragleave",e=>{if(!iaSample||!temArq(e))return;if(--d
 document.addEventListener("dragover",e=>{if(iaSample&&temArq(e))e.preventDefault()});
 document.addEventListener("drop",e=>{if(!iaSample||!temArq(e))return;e.preventDefault();dragN=0;$("#dropOv").hidden=true;if(e.dataTransfer.files.length){iaAbrir();iaAddArquivos(e.dataTransfer.files)}});
 $("#btnIA").addEventListener("click",()=>iaAbrir());$("#navIA").addEventListener("click",()=>iaAbrir());$("#iaX").addEventListener("click",iaFechar);
-$("#iaNovo").addEventListener("click",()=>{if(iaOcupado)return;iaTurnos=[];iaMsgs.innerHTML="";iaBoasVindas()});
+$("#iaNovo").addEventListener("click",()=>{if(iaOcupado)return;if(!iaCarregou)iaCarregar();iaConvId=null;iaMostrarConv()});
+$("#iaHist").addEventListener("change",e=>{if(iaOcupado||!e.target.value){iaHistUI();return}iaConvId=e.target.value;iaMostrarConv()});
 $("#iaParar").addEventListener("click",()=>iaCtl?.abort());
 $("#iaForm").addEventListener("submit",e=>{e.preventDefault();iaEnviar($("#iaTexto").value)});
 $("#iaTexto").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();iaEnviar(e.target.value)}});
