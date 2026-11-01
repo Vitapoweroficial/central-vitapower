@@ -283,7 +283,10 @@ input,textarea,select{font:inherit;color:var(--fg);background:var(--surface);bor
 .doc a[href^="#tarefa-"]{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:3px;text-decoration:none;padding:0 2px}
 .doc a[href^="#tarefa-"]::after{content:" ↗";font-size:.8em}
 .papel{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap;background:var(--sunk);color:var(--muted)}
-.saude.ok{background:var(--ok-bg);color:var(--ok)}.saude.risco{background:var(--warn-bg);color:var(--warn)}.saude.atras{background:var(--danger-bg);color:var(--danger)}.saude.fim{background:var(--sunk);color:var(--muted)}
+.saude.ok{background:var(--ok-bg);color:var(--ok)}.saude.risco{background:var(--warn-bg);color:var(--warn)}.saude.atras{background:var(--danger-bg);color:var(--danger)}.saude.fim{background:var(--sunk);color:var(--muted)}.saude.rot{background:var(--sunk);color:var(--accent)}
+.rotck{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;font-size:13px;color:var(--fg);font-weight:400;cursor:pointer}.rotck input{margin:2px 0 0}
+.rotsub{padding:6px 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;background:var(--sunk)}
+.rotfq{font-size:11.5px;color:var(--muted);white-space:nowrap}@media (max-width:600px){.rotfq{display:none}}
 /* painel */
 .kgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 @media (max-width:900px){.kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .kv{font-size:22px}}
@@ -545,6 +548,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <button type="button" class="ni" id="navIA" hidden><span class="ic">✨</span><span class="tx">Assistente</span></button>
       <button type="button" class="ni" id="navBusca"><span class="ic">🔎</span><span class="tx">Buscar tudo</span><span class="n">Ctrl K</span></button>
       <button type="button" class="ni" data-go="hoje"><span class="ic">☀️</span><span class="tx">Hoje</span><span class="n" id="nHoje"></span></button>
+      <button type="button" class="ni" data-go="rotina"><span class="ic">🔁</span><span class="tx">Rotina</span><span class="n" id="nRot"></span></button>
       <button type="button" class="ni" data-go="comando"><span class="ic">🎯</span><span class="tx">Central de Comando</span><span class="n" id="nCmd"></span></button>
       <button type="button" class="ni" data-go="avisos" id="navAvisos" hidden><span class="ic">🔔</span><span class="tx">Notificações</span><span class="n" id="nAvisos"></span></button>
       <button type="button" class="ni" data-go="painel"><span class="ic">📊</span><span class="tx">Painel</span></button>
@@ -593,6 +597,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       </section>
       <section id="vProjetos" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsPst"></div><div class="pgrid" id="pgrid"></div></div></section>
       <section id="vHoje" hidden><div id="hoje" class="hj"></div></section>
+      <section id="vRotina" hidden><div id="rotina" class="hj"></div></section>
       <section id="vLixeira" hidden><div class="lx" id="lixeira"></div></section>
       <section id="vAvisos" hidden><div class="avl" id="avisos"></div></section>
       <section id="vComando" hidden><div id="comando" class="hj"></div></section>
@@ -685,6 +690,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <label>Prazo<input id="pPrazo" type="date"></label>
     </div>
     <label>Situação<select id="pSt"><option value="ativo">Ativo</option><option value="pausado">Pausado</option><option value="concluido">Concluído</option></select></label>
+    <label class="rotck"><input type="checkbox" id="pRot"><span><b>Projeto de rotina</b> (dia a dia, sem prazo final). Aparece na aba Rotina e não conta como atrasado ou em risco.</span></label>
     <label id="lModP">Começar de um modelo<select id="pMod"></select><span id="pModInfo" style="font-weight:400"></span></label>
     <div style="display:grid;gap:6px"><span style="font-size:12px;color:var(--muted);font-weight:500">Cor</span><div class="swatches" id="pCores"></div></div>
     <div class="acs" id="pAcs" hidden><label>Quem tem acesso<select id="pAcesso"><option value="time">Todo o time (todos editam)</option><option value="restrito">Só as pessoas escolhidas</option></select></label>
@@ -771,7 +777,7 @@ let db=null,userNs=null,meuId=null,souDono=false,podeEscrever=true,modoLocal=fal
 let compart=[],pessoais=[],projetos=[],pagT=[],pagP=[],campos=[],nomesU={},pessoasOrg=[];
 let colT=null,colP=null,colEu=null,colPg=null,colCfg=null,hist=null;
 let vista=lsGet("tarefas-vista","hoje"),projAberto=null,pgAtual=null,fProj="",fResp="",fRapido="",fPrio="",fCampo="",busca="",verArq=false,editT=null,editP=null;
-if(!["minhas","time","projetos","painel","hoje","comando"].includes(vista))vista="hoje";
+if(!["minhas","time","projetos","painel","hoje","rotina","comando"].includes(vista))vista="hoje";
 let modo=lsGet("tarefas-modo","kanban"),agrupar=lsGet("tarefas-agrupar","status"),sortL=lsGet("tarefas-sort",{k:"prazo",d:1}),gpFechados=new Set(lsGet("tarefas-gpfechados",[])),abertos=new Set(lsGet("tarefas-arvore",[]));
 if(!["kanban","lista","grupo","cal","linha"].includes(modo))modo="kanban";
 
@@ -862,7 +868,7 @@ const moverTarefa=(t,st)=>t.status===st?null:alterarTarefa(t,{status:st},st==="f
 async function ir(v,extra){
   await flushPagina();
   vista=v;projAberto=extra?.proj||null;pgAtual=extra?.pg||null;fRapido="";fResp="";
-  if(["minhas","time","projetos","painel","hoje","comando"].includes(v))lsSet("tarefas-vista",v);
+  if(["minhas","time","projetos","painel","hoje","rotina","comando"].includes(v))lsSet("tarefas-vista",v);
   if(v==="lixeira")carregarLixeira();
   $("#app").classList.remove("aberta");render();window.scrollTo({top:0});
 }
@@ -877,6 +883,7 @@ function renderSide(){
   {const h=hoje(),n=todas().filter(t=>ehMinha(t)&&ab(t)&&((t.prazo&&t.prazo<=h)||t.foco===h)).length;$("#nHoje").textContent=n||"";$("#nHoje").style.color=todas().some(t=>ehMinha(t)&&ab(t)&&t.prazo&&t.prazo<h)?"var(--danger)":""}
   {const h=hoje(),n=todas().filter(t=>ab(t)&&!t.arquivado&&((t.prazo&&t.prazo<h)||bloqueios(t).length)).length+minhasAprovacoes().length;$("#nCmd").textContent=n||"";$("#nCmd").style.color=n?"var(--danger)":""}
   $("#navAvisos").hidden=!avisosNs;{const n=naoLidas().length;$("#nAvisos").textContent=n||"";$("#nAvisos").style.color=n?"var(--accent)":"";$("#btnMenu").textContent=n?`☰ 🔔${n}`:"☰"}
+  {const h=hoje(),l=tarefasRotina().filter(t=>t.status!=="feito"&&t.prazo&&t.prazo<=h);$("#nRot").textContent=l.length||"";$("#nRot").style.color=l.some(t=>t.prazo<h)?"var(--danger)":""}
   $("#nMinhas").textContent=todas().filter(t=>ehMinha(t)&&ab(t)).length||"";
   $("#nTime").textContent=compart.filter(ab).length||"";
   $("#nProj").textContent=projetos.filter(p=>(p.status||"ativo")==="ativo").length||"";
@@ -904,11 +911,11 @@ $("#addPessoal").addEventListener("click",()=>criarPagina("p",null));
 $("#addTime").addEventListener("click",()=>criarPagina("t",null));
 
 /* ---------- render geral ---------- */
-const TITULOS={avisos:["Notificações","Quando alguém atribui uma tarefa a você, comenta no que é seu, menciona você com @ ou pede sua aprovação, e os lembretes diários de prazo. Clique para abrir."],comando:["Central de Comando","Tudo o que está travado ou pedindo ação, no time inteiro. Clique num número para ver a lista e numa linha para abrir."],hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
+const TITULOS={rotina:["Rotina","O dia a dia que se repete. Marque ✓ quando fizer: a próxima vez já entra sozinha na data certa."],avisos:["Notificações","Quando alguém atribui uma tarefa a você, comenta no que é seu, menciona você com @ ou pede sua aprovação, e os lembretes diários de prazo. Clique para abrir."],comando:["Central de Comando","Tudo o que está travado ou pedindo ação, no time inteiro. Clique num número para ver a lista e numa linha para abrir."],hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
 function render(){
   renderSide();
   const quadro=vista==="minhas"||vista==="time"||vista==="projeto",pag=vista==="pagina";
-  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vComando").hidden=vista!=="comando";$("#vLixeira").hidden=vista!=="lixeira";$("#vAvisos").hidden=vista!=="avisos";$("#vPagina").hidden=!pag;
+  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vRotina").hidden=vista!=="rotina";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vComando").hidden=vista!=="comando";$("#vLixeira").hidden=vista!=="lixeira";$("#vAvisos").hidden=vista!=="avisos";$("#vPagina").hidden=!pag;
   $("#tools").hidden=pag||vista==="projetos"&&false;$("#hbtns").hidden=pag;
   if(!pag){const t=vista==="projeto"?[projDe(projAberto)?.nome||"Projeto","Tarefas, entregas e prazos deste projeto."]:TITULOS[vista];$("#titulo").textContent=t[0];$("#subt").textContent=t[1]}
   renderFiltros(quadro);
@@ -920,6 +927,7 @@ function render(){
   if(vista==="painel"){renderPainel();return}
   if(vista==="comando"){renderComando();return}
   if(vista==="hoje"){renderHoje();return}
+  if(vista==="rotina"){renderRotina();return}
   if(vista==="lixeira"){renderLixeira();return}
   if(vista==="avisos"){renderAvisos();return}
   renderPHead();renderChipsResp($("#chipsResp"),filtradas(true));
@@ -936,7 +944,7 @@ function render(){
 const modoEf=()=>vista==="projeto"&&modo==="grupo"?"kanban":modo;
 function renderFiltros(quadro){
   const painel=vista==="painel",projs=vista==="projetos";
-  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="lixeira"||vista==="comando"||vista==="avisos";
+  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="rotina"||vista==="lixeira"||vista==="comando"||vista==="avisos";
   const mv=$("#modoVis");mv.hidden=!quadro;mv.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b.dataset.m===modoEf());b.hidden=b.dataset.m==="grupo"&&vista==="projeto"});
   $("#busca").placeholder=projs?"Buscar projeto…":"Buscar tarefa…";
   $("#fProj").hidden=!(quadro||painel)||vista==="projeto";$("#fPrioSel").hidden=!(quadro||painel);$("#fPrioSel").value=fPrio;
@@ -1113,7 +1121,7 @@ $("#lista").addEventListener("change",e=>{
 /* ---------- por projeto ---------- */
 function statsProj(p){const ts=todas().filter(t=>t.projetoId===p.id),h=hoje();const n=k=>ts.filter(t=>(t.status||"afazer")===k).length;
   const en=p.entregas||[];return {tot:ts.length,afazer:n("afazer"),fazendo:n("fazendo"),aguardando:n("aguardando"),feito:n("feito"),late:ts.filter(t=>t.status!=="feito"&&t.prazo&&t.prazo<h).length,en:en.length,enOk:en.filter(x=>x.ok).length}}
-function saudeProj(p,s){const h=hoje();if((p.status||"ativo")==="concluido")return ["fim","Concluído"];if(p.status==="pausado")return ["fim","Pausado"];
+function saudeProj(p,s){const h=hoje();if((p.status||"ativo")==="concluido")return ["fim","Concluído"];if(p.status==="pausado")return ["fim","Pausado"];if(p.rotina)return ["rot","Rotina"];
   if(p.prazo&&p.prazo<h)return ["atras","Atrasado"];const pct=s.tot+s.en?(s.feito+s.enOk)/(s.tot+s.en):0;
   if(s.late||(p.prazo&&difDias(p.prazo,h)<=7&&pct<.7))return ["risco","Em risco"];return ["ok","No prazo"]}
 function barra(s){if(!s.tot)return `<div class="bar"></div>`;return `<div class="bar"><span style="width:${s.feito/s.tot*100}%;background:var(--c-feito)"></span><span style="width:${s.fazendo/s.tot*100}%;background:var(--c-fazendo)"></span><span style="width:${s.aguardando/s.tot*100}%;background:var(--c-aguardando)"></span></div>`}
@@ -1214,7 +1222,7 @@ function grafResp(ab){
 }
 function tabProjetos(){
   const ps=projetos.filter(p=>(!fProj||fProj===p.id)&&(p.status||"ativo")!=="concluido").map(p=>({p,s:statsProj(p)})).map(x=>({...x,sa:saudeProj(x.p,x.s)}));
-  const ord={atras:0,risco:1,ok:2,fim:3};ps.sort((a,b)=>ord[a.sa[0]]-ord[b.sa[0]]||(a.p.prazo||"9999").localeCompare(b.p.prazo||"9999"));
+  const ord={atras:0,risco:1,ok:2,rot:3,fim:4};ps.sort((a,b)=>ord[a.sa[0]]-ord[b.sa[0]]||(a.p.prazo||"9999").localeCompare(b.p.prazo||"9999"));
   return `<div class="panel"><div class="ph"><h3>Projetos em andamento</h3><span class="hint">${ps.length} ${ps.length===1?"projeto":"projetos"} · clique para abrir</span></div>
     ${ps.length?`<div style="overflow-x:auto"><table class="mini"><thead><tr><th>Projeto</th><th>Progresso</th><th class="r">Abertas</th><th class="r">Atrasadas</th><th class="r">Entregas</th><th class="r">Prazo</th><th>Situação</th></tr></thead><tbody>
     ${ps.map(({p,s,sa})=>{const ab=s.tot-s.feito;return `<tr data-p="${esc(p.id)}"><td><span class="pj" style="--pc:var(--${p.cor||"p1"})"><i></i><span>${esc(p.nome)}</span></span></td><td style="min-width:110px">${barra(s)}<small class="lock">${pctTx(s.feito,s.tot)} das tarefas</small></td><td class="r">${ab}</td><td class="r" style="${s.late?"color:var(--danger)":""}">${s.late}</td><td class="r">${s.en?`${s.enOk}/${s.en}`:"—"}</td><td class="r">${p.prazo?fmtData(p.prazo):"—"}</td><td><span class="saude ${sa[0]}">${sa[1]}</span></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">Nenhum projeto em andamento. Crie em “+ Projeto”.</div>`}</div>`;
@@ -1405,6 +1413,37 @@ $("#hoje").addEventListener("click",async e=>{const b=e.target.closest("[data-hj
   if(e.target.closest(".tt"))abrirTarefa(t)});
 $("#hoje").addEventListener("change",e=>{const c=e.target.closest("[data-hjck]");if(!c)return;const t=todas().find(x=>x.id===c.closest(".hr").dataset.id);if(t)moverTarefa(t,c.checked?"feito":"afazer")});
 $("#hoje").addEventListener("keydown",e=>{if(e.key!=="Enter")return;const tt=e.target.closest(".tt");if(!tt)return;const t=todas().find(x=>x.id===tt.closest(".hr").dataset.id);if(t)abrirTarefa(t)});
+
+/* ---------- rotina: tarefas que se repetem e projetos de rotina ---------- */
+let rotEscopo="minhas";
+const ehRotina=t=>!!(t.recorrencia&&REP[t.recorrencia])||!!projDe(t.projetoId)?.rotina;
+const GRUPOS_ROT=[["☀️ Diárias",["diaria","uteis"]],["📅 Semanais",["semanal","quinzenal"]],["🗓️ Mensais",["mensal"]],["📌 Outras da rotina",[""]]];
+function tarefasRotina(){const l=todas().filter(t=>!t.arquivado&&ehRotina(t));return rotEscopo==="time"?l:l.filter(ehMinha)}
+const projRotina=()=>projetos.find(p=>p.rotina&&(p.status||"ativo")==="ativo"&&podeEditarProj(p))||null;
+function renderRotina(){
+  const h=hoje(),l=tarefasRotina(),ab=l.filter(t=>t.status!=="feito"),feitas=l.filter(t=>t.status==="feito"&&(t.concluidoEm||"").slice(0,10)===h);
+  const devidas=ab.filter(t=>t.prazo&&t.prazo<=h),late=devidas.filter(t=>t.prazo<h).length,alvo=devidas.length+feitas.length,pct=alvo?Math.round(feitas.length/alvo*100):0;
+  const pr=projRotina(),temRot=projetos.some(p=>p.rotina);
+  const linha=t=>linhaHoje(t).replace('<div class="rs">',`<div class="rs">${REP[t.recorrencia]?`<span class="rotfq">🔁 ${REP[t.recorrencia]}</span>`:""}`);
+  const grupos=GRUPOS_ROT.map(([tit,reps])=>{const g=l.filter(t=>reps.includes(REP[t.recorrencia]?t.recorrencia:""));if(!g.length)return "";
+    const agora=ordenar(g.filter(t=>t.status!=="feito"&&t.prazo&&t.prazo<=h)),fe=g.filter(t=>t.status==="feito"&&(t.concluidoEm||"").slice(0,10)===h);
+    const prox=g.filter(t=>t.status!=="feito"&&!(t.prazo&&t.prazo<=h)).sort((a,b)=>(a.prazo||"9999").localeCompare(b.prazo||"9999"));
+    if(!agora.length&&!fe.length&&!prox.length)return "";const tot=agora.length+fe.length;
+    return `<section class="hjsec"><h3>${tit} <span class="num">${tot?`${fe.length}/${tot}`:"0"}</span><span class="hint">${tot?(agora.length?"para hoje":"tudo feito hoje ✓"):"nada para hoje"}</span></h3>${agora.map(linha).join("")}${fe.map(linha).join("")}${prox.length?`<div class="rotsub">Próximas</div>${prox.slice(0,15).map(linha).join("")}`:""}</section>`}).join("");
+  $("#rotina").innerHTML=`<div class="hjtop"><div><div class="big">Rotina de hoje</div><div class="sub">${late?`<b style="color:var(--danger)">${late} ${plural(late,"atrasada","atrasadas")}</b> · `:""}${devidas.length} ${plural(devidas.length,"pendente","pendentes")} · ${feitas.length} ${plural(feitas.length,"feita","feitas")} hoje</div></div>
+    <div class="prog"><div class="pnums"><span><b>${feitas.length}</b> de ${alvo}</span>${alvo?`<span>${pct}% da rotina</span>`:""}</div><div class="bar"><span style="width:${pct}%;background:var(--c-feito)"></span></div></div>
+    <div class="hbtns"><div class="seg" role="group" aria-label="De quem"><button type="button" data-rot="minhas" class="${rotEscopo==="minhas"?"on":""}">Minhas</button><button type="button" data-rot="time" class="${rotEscopo==="time"?"on":""}">Todo o time</button></div>${podeEscrever?`<button class="btn primary" type="button" data-rot="nova">+ Tarefa de rotina</button>${temRot?"":`<button class="btn" type="button" data-rot="proj">+ Projeto de rotina</button>`}`:""}</div></div>
+  ${grupos||`<div class="empty">Nenhuma tarefa de rotina ${rotEscopo==="minhas"?"sua ":""}ainda. Aqui entram as tarefas que se repetem (campo “Repetir” da tarefa) e as tarefas de projetos marcados como rotina.${podeEscrever?` Comece com “+ Tarefa de rotina”${temRot?"":" ou crie um projeto de rotina já com tarefas-padrão"}.`:""}</div>`}
+  ${pr?"":temRot?"":`<div class="notice">💡 Dica: crie um projeto <b>ROTINA</b> para juntar o dia a dia que não é de um cliente. Ele não aparece como atrasado nem em risco.</div>`}`}
+$("#rotina").addEventListener("click",e=>{const b=e.target.closest("[data-rot]");
+  if(b){const k=b.dataset.rot;if(k==="minhas"||k==="time"){rotEscopo=k;renderRotina();return}
+    if(k==="nova"){const h=hoje(),pr=projRotina();abrirTarefa(null,{recorrencia:"uteis",prazo:ehUtil(h)?h:addUteis(h,1),projetoId:pr?.id||null,_priv:false,respId:meuId||null});return}
+    if(k==="proj"){abrirProjeto(null);$("#pMod").value="rotina";$("#pMod").dispatchEvent(new Event("change"));return}}
+  const r=e.target.closest(".hr[data-id]");if(!r)return;const t=todas().find(x=>x.id===r.dataset.id);if(!t)return;
+  if(e.target.closest("[data-hjfoco]")){const on=t.foco!==hoje();alterarTarefa(t,{foco:on?hoje():null},on?"★ No foco de hoje":"Tirado do foco");return}
+  if(e.target.closest(".tt"))abrirTarefa(t)});
+$("#rotina").addEventListener("change",e=>{const c=e.target.closest("[data-hjck]");if(!c)return;const t=todas().find(x=>x.id===c.closest(".hr").dataset.id);if(t)moverTarefa(t,c.checked?"feito":"afazer")});
+$("#rotina").addEventListener("keydown",e=>{if(e.key!=="Enter")return;const tt=e.target.closest(".tt");if(!tt)return;const t=todas().find(x=>x.id===tt.closest(".hr").dataset.id);if(t)abrirTarefa(t)});
 
 /* ---------- revisão semanal guiada ---------- */
 let rvPasso=0;
@@ -1744,6 +1783,8 @@ $("#btnNova").addEventListener("click",()=>{if(podeEscrever)abrirTarefa(null)});
 /* ---------- diálogo de projeto ---------- */
 /* modelos de projeto: [tarefa, dias úteis a partir do início, prioridade, passos] */
 const MODPROJ={
+  rotina:{nome:"Rotina do dia a dia",rotina:true,desc:"Tarefas que se repetem: diárias, semanais e mensais, sem prazo final.",entregas:[],
+    t:[["Responder e-mails e WhatsApp de clientes",0,"alta",null,"uteis"],["Atualizar a situação dos pedidos em produção",0,"alta",null,"uteis"],["Conferir estoque de matérias-primas e embalagens",3,"media",null,"semanal"],["Conferir contas a pagar e a receber",4,"media",null,"semanal"],["Reunião semanal do time",0,"media",["Pedidos da semana","Atrasos e bloqueios","Prioridades"],"semanal"],["Fechamento do mês (vendas e financeiro)",20,"media",null,"mensal"]]},
   lanc:{nome:"Lançamento de produto",desc:"Do conceito à venda: fórmula, rótulo, regularização, produção e marketing.",entregas:["Fórmula aprovada","Rótulo aprovado","Regularização ANVISA","Lote piloto aprovado","1º lote produzido","Material de marketing pronto","Produto à venda"],
     t:[["Definir conceito, público e preço-alvo",3,"alta"],["Desenvolver e aprovar a fórmula",12,"alta",["Proposta de fórmula","Amostra","Avaliação sensorial","Aprovação"]],["Cotar e comprar matérias-primas e embalagens",20,"media"],["Criar arte do rótulo",20,"media"],["Revisar rótulo com o regulatório",24,"alta",["Tabela nutricional","Alegações permitidas","Advertências obrigatórias"]],["Enquadramento / notificação na ANVISA",30,"alta"],["Lote piloto e testes de estabilidade",34,"media"],["Fotos e material de marketing",38,"media"],["Cadastrar produto nos canais de venda",42,"media"],["Produção do 1º lote",45,"alta"],["Lançamento e divulgação",48,"alta"]]},
   anvisa:{nome:"Regularização ANVISA",desc:"Enquadramento, dossiê técnico, rótulo e protocolo.",entregas:["Enquadramento definido","Dossiê técnico completo","Rótulo conforme","Protocolo realizado"],
@@ -1757,7 +1798,7 @@ let aoCriarProj=null,ckP=[];
 function addCkP(){const v=$("#pCkNovo").value.trim();if(!v)return;ckP.push({id:novoId(),t:v,ok:false});$("#pCkNovo").value="";renderCkEm($("#pCk"),ckP,true);$("#pCkNovo").focus()}
 $("#pCkAdd").addEventListener("click",addCkP);$("#pCkNovo").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCkP()}});
 function abrirProjeto(p,cb){editP=p||null;aoCriarProj=cb||null;
-  $("#pTit").textContent=p?"Editar projeto":"Novo projeto";$("#pNome").value=p?.nome||"";$("#pDesc").value=p?.descricao||"";$("#pPrazo").value=p?.prazo||"";$("#pInicio").value=p?.inicio||"";$("#pSt").value=p?.status||"ativo";
+  $("#pTit").textContent=p?"Editar projeto":"Novo projeto";$("#pNome").value=p?.nome||"";$("#pDesc").value=p?.descricao||"";$("#pPrazo").value=p?.prazo||"";$("#pInicio").value=p?.inicio||"";$("#pSt").value=p?.status||"ativo";$("#pRot").checked=!!p?.rotina;
   const cor=p?.cor||CORES[projetos.length%CORES.length];
   $("#pCores").innerHTML=CORES.map(c=>`<label style="--pc:var(--${c})" title="Cor"><input type="radio" name="pCor" value="${c}" ${c===cor?"checked":""} aria-label="Cor ${c.slice(1)}"></label>`).join("");
   ckP=JSON.parse(JSON.stringify(p?.entregas||[]));renderCkEm($("#pCk"),ckP,true);$("#pCkNovo").value="";
@@ -1778,19 +1819,19 @@ function renderAcesso(p){const box=$("#pAcs");box.hidden=!(temPermissoes()||p?._
   $("#pAcsInfo").textContent=rest?"Quem está como “Sem acesso” não vê o projeto nem as tarefas dele. Só o dono muda esta lista e exclui o projeto.":"Todo o time vê e edita. Só o dono exclui o projeto."+(dono?"":" Só o dono muda quem tem acesso.")}
 $("#pAcesso").addEventListener("change",e=>{acsTmp.acesso=e.target.value;if(acsTmp.acesso==="restrito"&&meuId&&!acsTmp.membros.some(m=>m.id===meuId))acsTmp.membros.push({id:meuId,papel:"dono"});renderAcesso(editP)});
 $("#pMembros").addEventListener("change",e=>{const s=e.target.closest("[data-m]");if(!s)return;acsTmp.membros=acsTmp.membros.filter(m=>m.id!==s.dataset.m);if(s.value)acsTmp.membros.push({id:s.dataset.m,papel:s.value})});
-$("#pMod").addEventListener("change",e=>{const m=MODPROJ[e.target.value];$("#pModInfo").textContent=m?`${m.desc} Cria ${m.t.length} tarefas do time com prazos a partir do início e ${m.entregas.length} entregas.`:"";
+$("#pMod").addEventListener("change",e=>{const m=MODPROJ[e.target.value];$("#pModInfo").textContent=m?(m.rotina?`${m.desc} Cria ${m.t.length} tarefas suas que se repetem (dá para mudar ou apagar depois).`:`${m.desc} Cria ${m.t.length} tarefas do time com prazos a partir do início e ${m.entregas.length} entregas.`):"";if(m?.rotina){$("#pRot").checked=true;if(!$("#pNome").value.trim()){$("#pNome").value="ROTINA";return}}
   if(m&&!$("#pNome").value.trim()){$("#pNome").value=m.nome+" — ";$("#pNome").focus()}});
 $("#btnNovoProj").addEventListener("click",()=>{if(podeEscrever)abrirProjeto(null)});
 $("#frmP").addEventListener("submit",async e=>{e.preventDefault();const nm=$("#pNome").value.trim();if(!nm){$("#pNome").focus();return}
   if(!modoLocal&&!colP){toast("Carregando… tente de novo em alguns segundos");return}
-  const p={...(editP||{id:novoId(),criadoPor:meuId||null}),nome:nm,descricao:$("#pDesc").value.trim(),inicio:$("#pInicio").value||null,prazo:$("#pPrazo").value||null,status:$("#pSt").value,cor:(document.querySelector('input[name="pCor"]:checked')||{}).value||"p1",entregas:ckP.filter(x=>x.t&&x.t.trim()).map(x=>({id:x.id,t:x.t.trim(),ok:!!x.ok}))};
+  const p={...(editP||{id:novoId(),criadoPor:meuId||null}),nome:nm,descricao:$("#pDesc").value.trim(),inicio:$("#pInicio").value||null,prazo:$("#pPrazo").value||null,status:$("#pSt").value,rotina:$("#pRot").checked,cor:(document.querySelector('input[name="pCor"]:checked')||{}).value||"p1",entregas:ckP.filter(x=>x.t&&x.t.trim()).map(x=>({id:x.id,t:x.t.trim(),ok:!!x.ok}))};
   if(!$("#pAcs").hidden&&(!editP||papelProj(editP)==="dono")){
     if(acsTmp.acesso==="restrito"&&!acsTmp.membros.some(x=>x.papel==="dono")){toast("Deixe pelo menos uma pessoa como dono do projeto.",3500);return}
     p.acesso=acsTmp.acesso;p.membros=acsTmp.membros.map(x=>({id:x.id,papel:x.papel}))}
   const m=!editP?MODPROJ[$("#pMod").value]:null,base=p.inicio||hoje();
-  if(m){if(!p.entregas.length)p.entregas=m.entregas.map(t=>({id:novoId(),t,ok:false}));if(!p.inicio)p.inicio=base;if(!p.prazo)p.prazo=addUteis(base,Math.max(...m.t.map(x=>x[1])))}
+  if(m){if(!p.entregas.length)p.entregas=m.entregas.map(t=>({id:novoId(),t,ok:false}));if(!p.inicio)p.inicio=base;if(!p.prazo&&!m.rotina)p.prazo=addUteis(base,Math.max(...m.t.map(x=>x[1])))}
   if(await salvarProjeto(p)){$("#dlgP").close();
-    if(m){let n=0;for(const [tt,dd,pr,ck] of m.t){const t={id:novoId(),_priv:false,titulo:tt,descricao:"",status:"afazer",prioridade:pr,prazo:addUteis(base,dd),inicio:null,projetoId:p.id,respId:null,respNome:null,checklist:(ck||[]).map(x=>({id:novoId(),t:x,ok:false})),historico:[],campos:{},criadoPor:meuId||null,ordem:Date.now()+n,arquivado:false};if(!modoLocal&&!colT)break;if(await salvarTarefa(t))n++}
+    if(m){let n=0;for(const [tt,dd,pr,ck,rep] of m.t){const t={id:novoId(),_priv:false,titulo:tt,descricao:"",status:"afazer",prioridade:pr,prazo:dd||ehUtil(base)?addUteis(base,dd):addUteis(base,1),inicio:null,projetoId:p.id,respId:m.rotina?meuId||null:null,recorrencia:rep||null,respNome:null,checklist:(ck||[]).map(x=>({id:novoId(),t:x,ok:false})),historico:[],campos:{},criadoPor:meuId||null,ordem:Date.now()+n,arquivado:false};if(!modoLocal&&!colT)break;if(await salvarTarefa(t))n++}
       toast(`Projeto criado com ${n} tarefas do modelo`,3000);if(!aoCriarProj){ir("projeto",{proj:p.id})}}
     else toast(editP?"Projeto salvo":"Projeto criado");if(aoCriarProj){aoCriarProj(p.id);aoCriarProj=null}}});
 $("#pDel").addEventListener("click",()=>{const n=todas().filter(t=>t.projetoId===editP?.id).length,rest=editP?.acesso==="restrito";$("#pConfTx").textContent=n?(rest?`Excluir este projeto? Ele é restrito, então ${n===1?"a tarefa dele vai junto":`as ${n} tarefas dele vão junto`} para a Lixeira.`:`Excluir este projeto? ${n===1?"A tarefa dele continua":`As ${n} tarefas dele continuam`} no quadro, sem projeto.`):"Excluir este projeto de vez?";$("#pConf").hidden=false;$("#pActs").hidden=true});
@@ -2342,7 +2383,7 @@ function iaSugestoes(){const p=vista==="projeto"?projDe(projAberto):null;
   $("#iaSug").onclick=e=>{const b=e.target.closest("[data-sug]");if(!b)return;const q=l[+b.dataset.sug][1];if(q)iaEnviar(q);else{const x=$("#iaTexto");x.value="Crie o projeto de  com prazo em . Quebre em tarefas com prazos e prioridades.";x.focus();x.setSelectionRange(17,17)}}}
 function iaEstado(){
   const h=hoje(),ab=todas().filter(t=>!t.arquivado&&t.status!=="feito");
-  const ps=projetos.map(p=>{const s=statsProj(p);return {id:p.id,nome:p.nome,status:p.status||"ativo",inicio:p.inicio||null,prazo:p.prazo||null,saude:saudeProj(p,s)[1],tarefas:s.tot,concluidas:s.feito,atrasadas:s.late,entregas:(p.entregas||[]).map(e=>(e.ok?"[x] ":"[ ] ")+e.t)}});
+  const ps=projetos.map(p=>{const s=statsProj(p);return {id:p.id,nome:p.nome,rotina:p.rotina||undefined,status:p.status||"ativo",inicio:p.inicio||null,prazo:p.prazo||null,saude:saudeProj(p,s)[1],tarefas:s.tot,concluidas:s.feito,atrasadas:s.late,entregas:(p.entregas||[]).map(e=>(e.ok?"[x] ":"[ ] ")+e.t)}});
   const ts=ordenar(ab.slice()).slice(0,180).map(t=>({id:t.id,titulo:t.titulo,status:t.status||"afazer",prioridade:t.prioridade||"media",inicio:t.inicio||null,prazo:t.prazo||null,projeto:t.projetoId||null,responsavel:t._priv?"eu (pessoal)":nomeResp(t)||null,aguardando:t.status==="aguardando"?(t.aguardando||""):undefined,checklist:(t.checklist||[]).length?`${t.checklist.filter(x=>x.ok).length}/${t.checklist.length}`:undefined,repete:REP[t.recorrencia]||undefined,subtarefa_de:t.paiId||undefined,depende_de:(t.dependeDe||[]).length?t.dependeDe:undefined,bloqueada:bloqueios(t).length?true:undefined,comentarios:(t.comentarios||[]).length?t.comentarios.slice(-3).map(c=>c.texto.slice(0,200)):undefined}));
   const fe=todas().filter(t=>t.status==="feito"&&(t.concluidoEm||"").slice(0,10)>=addDias(h,-7)).slice(0,40).map(t=>({titulo:t.titulo,projeto:t.projetoId||null,concluida:(t.concluidoEm||"").slice(0,10)}));
   const pa=vista==="pagina"?pagDe(pgAtual):null;
@@ -2379,14 +2420,15 @@ function iaFerramentas(){
 function iaRegras(){return `Você é o assistente do app de tarefas e projetos da VitaPower, empresa brasileira de suplementos e nutrição. Responda sempre em português do Brasil, de forma direta e prática.
 Você recebe um resumo do estado atual do app em JSON e o pedido da pessoa. Quando houver ferramentas de consulta (buscar, ver_tarefa, ver_pagina, ver_projeto, carga_equipe, historico_pessoa), use-as para ver o que o resumo não traz: documentos, comentários, histórico, tarefas concluídas, a linha do tempo completa de um projeto e a carga de cada pessoa. Consulte só o necessário (poucas chamadas). No fim, responda SOMENTE com um objeto JSON neste formato:
 {"resposta": "texto para a pessoa; listas com linhas começando por '- '; sem markdown além disso", "acoes": [], "perguntas": []}
+ROTINA: tarefas do dia a dia que não são de um cliente ou pedido vão para o projeto de rotina (o que tem "rotina":true; se não houver, crie com criar_projeto e "rotina":true, sem prazo) e usam "repetir" quando se repetem. Projetos de rotina não têm prazo final e não contam como atrasados.
 PERGUNTAS: sempre que precisar perguntar algo, coloque as perguntas em "perguntas" (a pessoa responde clicando, sem precisar escrever) e deixe "acoes" vazio; na "resposta" escreva só uma frase curta de introdução, sem repetir as perguntas. Formato de cada pergunta: {"texto":"pergunta curta","tipo":"data|pessoa|pessoas|opcao|opcoes|numero|texto","opcoes":["só para opcao (uma escolha) e opcoes (várias)"]}. Use "data" para prazos e datas (abre um calendário), "pessoa"/"pessoas" para responsáveis (lista do time), "opcao"/"opcoes" quando der para prever as respostas (dê de 2 a 6 opções curtas; a pessoa ainda pode escrever outra), "numero" para quantidades e "texto" só quando não houver alternativa. No máximo 6 perguntas por vez. As respostas chegam como "Respostas:" com cada pergunta, a resposta e, para pessoas e datas, o id e a data AAAA-MM-DD.
 "acoes" fica vazio quando o pedido é só uma pergunta ou análise. Quando o pedido pede para criar ou mudar algo, proponha as ações (a pessoa revisa antes de aplicar). Tipos de ação:
-{"tipo":"criar_projeto","ref":"P1","nome":"...","descricao":"...","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","entregas":["marco 1","marco 2"]}
-{"tipo":"criar_tarefa","titulo":"...","descricao":"...","projeto":"id de projeto existente, ou a ref de um criar_projeto desta resposta, ou null","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","status":"afazer|fazendo|aguardando","checklist":["passo"],"visibilidade":"eu|time"}
-{"tipo":"alterar_tarefa","id":"id de tarefa existente","mudancas":{"status":"afazer|fazendo|aguardando|feito","prazo":"AAAA-MM-DD ou null","inicio":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","titulo":"...","projeto":"id ou null","responsavel":"id de uma pessoa da lista pessoas, ou null","depende_de":["ids de tarefas das quais esta depende (lista completa)"]}}
+{"tipo":"criar_projeto","ref":"P1","nome":"...","descricao":"...","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","rotina":false,"entregas":["marco 1","marco 2"]}
+{"tipo":"criar_tarefa","titulo":"...","descricao":"...","projeto":"id de projeto existente, ou a ref de um criar_projeto desta resposta, ou null","inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","status":"afazer|fazendo|aguardando","checklist":["passo"],"repetir":"diaria|uteis|semanal|quinzenal|mensal ou null","visibilidade":"eu|time"}
+{"tipo":"alterar_tarefa","id":"id de tarefa existente","mudancas":{"status":"afazer|fazendo|aguardando|feito","prazo":"AAAA-MM-DD ou null","inicio":"AAAA-MM-DD ou null","prioridade":"alta|media|baixa","titulo":"...","projeto":"id ou null","responsavel":"id de uma pessoa da lista pessoas, ou null","depende_de":["ids de tarefas das quais esta depende (lista completa)"],"repetir":"diaria|uteis|semanal|quinzenal|mensal ou null"}}
 {"tipo":"mover_datas","ids":["ids de tarefas"],"dias":número de dias corridos (negativo antecipa)}
 {"tipo":"comentar","tarefa":"id de tarefa","texto":"comentário; para marcar alguém escreva @Nome no texto","mencoes":["ids das pessoas marcadas"]}
-{"tipo":"alterar_projeto","id":"id de projeto","mudancas":{"inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","status":"ativo|pausado|concluido"},"marcos":[{"texto":"nome da entrega (igual ao existente para dar data a ele, ou novo)","data":"AAAA-MM-DD"}]}
+{"tipo":"alterar_projeto","id":"id de projeto","mudancas":{"inicio":"AAAA-MM-DD ou null","prazo":"AAAA-MM-DD ou null","status":"ativo|pausado|concluido","rotina":true},"marcos":[{"texto":"nome da entrega (igual ao existente para dar data a ele, ou novo)","data":"AAAA-MM-DD"}]}
 {"tipo":"pedir_aprovacao","pagina":"id de página do time","por":"id da pessoa que aprova"}
 {"tipo":"criar_pagina","titulo":"...","icone":"um emoji","espaco":"time|eu","html":"conteúdo da página em HTML (veja FORMATAÇÃO)"}
 {"tipo":"editar_pagina","id":"id de página existente","modo":"substituir|acrescentar","html":"substituir: o conteúdo COMPLETO novo da página; acrescentar: só o trecho que entra no fim","titulo":"novo título (opcional)","icone":"emoji (opcional)"}
@@ -2421,18 +2463,19 @@ function iaDescr(a,refs){
   if(a.tipo==="editar_pagina"){const g=pagT.find(x=>x.id===a.id)||pagP.find(x=>x.id===a.id);if(!g||typeof a.html!=="string")return null;const ac=a.modo==="acrescentar";
     return ["✎",ac?"Acrescentar na página":"Editar página",`${a.icone||g.icone||"📄"} ${a.titulo||g.titulo||"Sem título"}${a.titulo&&a.titulo!==g.titulo?` (antes “${g.titulo||"Sem título"}”)`:""}${ac?" · conteúdo novo no fim":" · conteúdo atualizado"}${/<table/i.test(a.html)?" · com tabela":""}`]}
   if(a.tipo==="criar_pagina")return ["📄","Nova página"+(a.espaco==="eu"?" pessoal":" do time"),`${a.icone?a.icone+" ":""}${a.titulo||"(sem título)"}${/<table/i.test(a.html||"")?" · com tabela":""}`];
-  if(a.tipo==="criar_projeto")return ["🗂️","Novo projeto",`${a.nome||"(sem nome)"}${isoOk(a.prazo)?" · prazo "+fmtData(a.prazo):""}${(a.entregas||[]).length?` · ${a.entregas.length} entregas`:""}`];
-  if(a.tipo==="criar_tarefa")return ["＋","Nova tarefa",`${a.titulo||"(sem título)"}${nomeP(a.projeto)?" · "+nomeP(a.projeto):""}${isoOk(a.prazo)?" · "+fmtData(a.prazo):""}${a.prioridade==="alta"?" · prioridade alta":""}`];
+  if(a.tipo==="criar_projeto")return ["🗂️","Novo projeto",`${a.nome||"(sem nome)"}${isoOk(a.prazo)?" · prazo "+fmtData(a.prazo):""}${a.rotina?" · rotina":""}${(a.entregas||[]).length?` · ${a.entregas.length} entregas`:""}`];
+  if(a.tipo==="criar_tarefa")return ["＋","Nova tarefa",`${a.titulo||"(sem título)"}${nomeP(a.projeto)?" · "+nomeP(a.projeto):""}${isoOk(a.prazo)?" · "+fmtData(a.prazo):""}${a.prioridade==="alta"?" · prioridade alta":""}${REP[a.repetir]?" · 🔁 "+REP[a.repetir].toLowerCase():""}`];
   if(a.tipo==="alterar_tarefa"){const t=todas().find(x=>x.id===a.id);if(!t)return null;const m=a.mudancas||{},ps=[];
     if(COLS.some(c=>c.id===m.status))ps.push("→ "+COLS.find(c=>c.id===m.status).nome);if("prazo" in m)ps.push("prazo "+(isoOk(m.prazo)?fmtData(m.prazo):"sem prazo"));if("inicio" in m)ps.push("início "+(isoOk(m.inicio)?fmtData(m.inicio):"sem início"));
     if(PRIO[m.prioridade])ps.push("prioridade "+PRIO[m.prioridade][0].toLowerCase());if(m.titulo)ps.push(`novo nome “${m.titulo}”`);if("projeto" in m)ps.push("projeto "+(nomeP(m.projeto)||"nenhum"));
     if("responsavel" in m)ps.push("responsável "+(m.responsavel?nomeDe(m.responsavel):"ninguém"));
     if(Array.isArray(m.depende_de))ps.push(m.depende_de.length?"depende de "+m.depende_de.map(id=>`“${todas().find(x=>x.id===id)?.titulo||"?"}”`).join(", "):"sem dependências");
+    if("repetir" in m)ps.push(REP[m.repetir]?"repete "+REP[m.repetir].toLowerCase():"não repete");
     if(!ps.length)return null;return ["✎","Alterar",`${t.titulo}: ${ps.join(", ")}`]}
   if(a.tipo==="mover_datas"){const ts=(a.ids||[]).map(id=>todas().find(x=>x.id===id)).filter(Boolean),d=Math.round(+a.dias||0);if(!ts.length||!d)return null;
     return ["📅",`${d>0?"Adiar":"Antecipar"} ${Math.abs(d)} ${plural(Math.abs(d),"dia","dias")}`,ts.slice(0,4).map(t=>t.titulo).join(", ")+(ts.length>4?` e mais ${ts.length-4}`:"")]}
   if(a.tipo==="comentar"){const t=todas().find(x=>x.id===a.tarefa);if(!t||!a.texto)return null;return ["💬","Comentar em "+t.titulo,corta(a.texto,140)]}
-  if(a.tipo==="alterar_projeto"){const p=projDe(a.id);if(!p)return null;const m=a.mudancas||{},ps=[];if("prazo" in m)ps.push("prazo "+(isoOk(m.prazo)?fmtData(m.prazo):"sem prazo"));if("inicio" in m)ps.push("início "+(isoOk(m.inicio)?fmtData(m.inicio):"sem início"));if(PST[m.status])ps.push(PST[m.status].toLowerCase());
+  if(a.tipo==="alterar_projeto"){const p=projDe(a.id);if(!p)return null;const m=a.mudancas||{},ps=[];if("prazo" in m)ps.push("prazo "+(isoOk(m.prazo)?fmtData(m.prazo):"sem prazo"));if("inicio" in m)ps.push("início "+(isoOk(m.inicio)?fmtData(m.inicio):"sem início"));if(PST[m.status])ps.push(PST[m.status].toLowerCase());if("rotina" in m)ps.push(m.rotina?"vira projeto de rotina":"deixa de ser rotina");
     (Array.isArray(a.marcos)?a.marcos:[]).forEach(x=>{if(x&&x.texto&&isoOk(x.data))ps.push(`marco “${x.texto}” em ${fmtData(x.data)}`)});if(!ps.length)return null;return ["🗂️","Alterar projeto",`${p.nome}: ${ps.join(", ")}`]}
   if(a.tipo==="pedir_aprovacao"){const g=pagT.find(x=>x.id===a.pagina);if(!g||!a.por)return null;return ["👀","Pedir aprovação",`${g.titulo||"Sem título"} → ${nomeDe(a.por)}`]}
   return null}
@@ -2502,7 +2545,7 @@ async function iaAplicar(acoes){
   for(const a of acoes.filter(a=>a.tipo==="editar_pagina")){const r=await iaEditarPagina(a);if(r)ok++;else f++}
   if(pgNova)setTimeout(()=>ir("pagina",{pg:pgNova}),400);
   for(const a of acoes.filter(a=>a.tipo==="criar_projeto")){
-    const p={id:novoId(),criadoPor:meuId||null,nome:String(a.nome||"Novo projeto").slice(0,140),descricao:String(a.descricao||"").slice(0,2000),inicio:isoOk(a.inicio),prazo:isoOk(a.prazo),status:"ativo",cor:CORES[(projetos.length+np++)%CORES.length],entregas:(Array.isArray(a.entregas)?a.entregas:[]).slice(0,30).map(t=>({id:novoId(),t:String(t).slice(0,200),ok:false}))};
+    const p={id:novoId(),criadoPor:meuId||null,nome:String(a.nome||"Novo projeto").slice(0,140),descricao:String(a.descricao||"").slice(0,2000),inicio:isoOk(a.inicio),prazo:isoOk(a.prazo),status:"ativo",rotina:a.rotina===true||undefined,cor:CORES[(projetos.length+np++)%CORES.length],entregas:(Array.isArray(a.entregas)?a.entregas:[]).slice(0,30).map(t=>({id:novoId(),t:String(t).slice(0,200),ok:false}))};
     if(p.inicio&&p.prazo&&p.inicio>p.prazo)[p.inicio,p.prazo]=[p.prazo,p.inicio];
     if(a.ref)mapa[a.ref]=p.id;if(await salvarProjeto(p))ok++;else f++}
   const pid=v=>v==null||v===""?null:mapa[v]||(projDe(v)?v:null);
@@ -2510,7 +2553,7 @@ async function iaAplicar(acoes){
   for(const a of acoes){
     if(a.tipo==="criar_tarefa"){const proj=pid(a.projeto),priv=a.visibilidade==="eu"?podeEu:a.visibilidade==="time"?false:(!proj&&vista==="minhas"&&podeEu);
       const t={id:novoId(),_priv:priv,titulo:String(a.titulo||"Tarefa").slice(0,200),descricao:String(a.descricao||"").slice(0,4000),status:["afazer","fazendo","aguardando"].includes(a.status)?a.status:"afazer",prioridade:PRIO[a.prioridade]?a.prioridade:"media",
-        prazo:isoOk(a.prazo),inicio:isoOk(a.inicio),projetoId:proj,respId:!priv&&vista==="minhas"?meuId:null,respNome:null,checklist:(Array.isArray(a.checklist)?a.checklist:[]).slice(0,30).map(x=>({id:novoId(),t:String(x).slice(0,200),ok:false})),historico:[],campos:{},criadoPor:meuId||null,ordem:Date.now()+(k++),arquivado:false};
+        prazo:isoOk(a.prazo),inicio:isoOk(a.inicio),projetoId:proj,recorrencia:REP[a.repetir]?a.repetir:null,respId:!priv&&vista==="minhas"?meuId:null,respNome:null,checklist:(Array.isArray(a.checklist)?a.checklist:[]).slice(0,30).map(x=>({id:novoId(),t:String(x).slice(0,200),ok:false})),historico:[],campos:{},criadoPor:meuId||null,ordem:Date.now()+(k++),arquivado:false};
       if(t.inicio&&t.prazo&&t.inicio>t.prazo)[t.inicio,t.prazo]=[t.prazo,t.inicio];
       if(!modoLocal&&((t._priv&&!colEu)||(!t._priv&&!colT))){f++;continue}
       if(await salvarTarefa(t))ok++;else f++}
@@ -2518,6 +2561,7 @@ async function iaAplicar(acoes){
       if(COLS.some(c=>c.id===m.status))p.status=m.status;if("prazo" in m)p.prazo=isoOk(m.prazo);if("inicio" in m)p.inicio=isoOk(m.inicio);if(PRIO[m.prioridade])p.prioridade=m.prioridade;if(m.titulo)p.titulo=String(m.titulo).slice(0,200);if("projeto" in m)p.projetoId=pid(m.projeto);
       if("responsavel" in m){const u=m.responsavel&&iaPessoas().some(x=>x.id===m.responsavel)?m.responsavel:null;if(!t._priv){p.respId=u;p.respNome=null}}
       if(Array.isArray(m.depende_de))p.dependeDe=m.depende_de.filter(id=>id!==t.id&&todas().some(x=>x.id===id));
+      if("repetir" in m)p.recorrencia=REP[m.repetir]?m.repetir:null;
       if(!Object.keys(p).length)continue;if(await alterarTarefa(t,p))ok++;else f++}
     else if(a.tipo==="mover_datas"){const d=Math.round(+a.dias||0);if(!d)continue;
       for(const id of (a.ids||[])){const t=todas().find(x=>x.id===id);if(!t||(!t.inicio&&!t.prazo)){f++;continue}
@@ -2527,7 +2571,7 @@ async function iaAplicar(acoes){
       const cs=[...(t.comentarios||[]),{id:novoId(),por:meuId||null,texto:String(a.texto).slice(0,4000),em:new Date().toISOString(),...(mencoes.length?{mencoes}:{})}].slice(-200);
       if(await salvarTarefa({...t,comentarios:cs},t))ok++;else f++}
     else if(a.tipo==="alterar_projeto"){const p=projDe(a.id);if(!p||!podeEditarProj(p)){f++;continue}const m=a.mudancas||{},n={...p};
-      if("inicio" in m)n.inicio=isoOk(m.inicio);if("prazo" in m)n.prazo=isoOk(m.prazo);if(PST[m.status])n.status=m.status;
+      if("inicio" in m)n.inicio=isoOk(m.inicio);if("prazo" in m)n.prazo=isoOk(m.prazo);if(PST[m.status])n.status=m.status;if("rotina" in m)n.rotina=m.rotina===true;
       const en=JSON.parse(JSON.stringify(p.entregas||[]));(Array.isArray(a.marcos)?a.marcos:[]).forEach(x=>{if(!x||!x.texto||!isoOk(x.data))return;const e=en.find(e=>chave(e.t)===chave(x.texto));if(e)e.data=isoOk(x.data);else en.push({id:novoId(),t:String(x.texto).slice(0,200),ok:false,data:isoOk(x.data)})});n.entregas=en;
       if(await salvarProjeto(n))ok++;else f++}
     else if(a.tipo==="pedir_aprovacao"){const g=pagT.find(x=>x.id===a.pagina);if(!g||!a.por||a.por===meuId||!iaPessoas().some(x=>x.id===a.por)){f++;continue}

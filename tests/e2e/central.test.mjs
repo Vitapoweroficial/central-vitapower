@@ -696,3 +696,37 @@ test("Assistente: perguntas com calendário e pessoas, e a conversa do dia conti
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Rotina: projeto de rotina pelo modelo, aba Rotina agrupa por frequência e ao marcar feito a próxima entra sozinha", async () => {
+  const { page, ctx, erros } = await abrir();
+  await page.click('#navAt [data-go="rotina"]');
+  await page.locator("#rotina .empty", { hasText: "Nenhuma tarefa de rotina" }).waitFor();
+  await page.click('#rotina [data-rot="proj"]');
+  await page.locator("#dlgP[open]").waitFor();
+  assert.equal(await page.inputValue("#pNome"), "ROTINA");
+  assert.equal(await page.isChecked("#pRot"), true);
+  await page.click("#frmP button[type=submit]");
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).filter((d) => d.colecao === "tarefas" && d.dados.recorrencia).length === 6);
+  const est = await estado(page);
+  const proj = Object.values(est.docs).find((d) => d.colecao === "projetos");
+  assert.equal(proj.dados.rotina, true);
+  assert.equal(proj.dados.prazo ?? null, null);
+  await page.click('#navAt [data-go="rotina"]');
+  for (const g of ["Diárias", "Semanais", "Mensais"]) await page.locator("#rotina .hjsec h3", { hasText: g }).waitFor();
+  const linha = page.locator("#rotina .hjsec", { hasText: "Diárias" }).locator(".hr", { hasText: "Responder e-mails" }).first();
+  assert.match(await linha.innerText(), /Dias úteis/);
+  await linha.locator("[data-hjck]").check();
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).filter((d) => d.dados.titulo === "Responder e-mails e WhatsApp de clientes").length === 2);
+  await page.locator("#rotina .pnums", { hasText: "1 de" }).waitFor();
+  // projeto de rotina não aparece como atrasado ou em risco
+  await page.click('#navAt [data-go="projetos"]');
+  await page.locator(".saude.rot", { hasText: "Rotina" }).first().waitFor();
+  // + Tarefa de rotina já vem com repetição e no projeto de rotina
+  await page.click('#navAt [data-go="rotina"]');
+  await page.click('#rotina [data-rot="nova"]');
+  await page.locator("#dlgT[open]").waitFor();
+  assert.equal(await page.inputValue("#tRep"), "uteis");
+  assert.equal(await page.inputValue("#tProj"), proj.doc_id);
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
