@@ -577,3 +577,31 @@ test("Anexos: PDF na tarefa e foto na página, abrem com um clique; sem Storage,
   assert.deepEqual(b.erros, []);
   await b.ctx.close();
 });
+
+test("Páginas na tarefa: + Página cria página ligada, a tarefa lista e a página volta para a tarefa", async () => {
+  const { page, ctx, erros } = await abrir();
+  await criarRapida(page, "Compra MP cliente Alfa");
+  await page.locator("#board .card", { hasText: "Compra MP cliente Alfa" }).click();
+  await page.locator("#dlgT[open]").waitFor();
+  await page.fill("#tDesc", "mudança antes de criar a página");
+  await page.click("#tPgAdd");
+  await page.locator("#vPagina:not([hidden])").waitFor();
+  // a tarefa foi salva antes de sair e a página nasce ligada a ela, no espaço do time
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.tipo === "pagina" && d.dados.tarefaId));
+  const est = await estado(page), t = tarefa(est, "Compra MP cliente Alfa");
+  assert.equal(t.dados.descricao, "mudança antes de criar a página");
+  const pg = Object.values(est.docs).find((d) => d.dados.tipo === "pagina");
+  assert.equal(pg.dados.tarefaId, t.doc_id);
+  assert.equal(pg.dados.titulo, "Compra MP cliente Alfa");
+  assert.equal(pg.colecao, "paginas");
+  await page.fill("#pgTitulo", "Cotações Alfa");
+  await page.waitForFunction(() => Object.values(window.__fakeEstado().docs).some((d) => d.dados.titulo === "Cotações Alfa"));
+  // da página volta para a tarefa, e a tarefa mostra a página
+  await page.locator("#pgTarefa a", { hasText: "Compra MP cliente Alfa" }).click();
+  await page.locator("#dlgT[open]").waitFor();
+  await page.locator("#tPgs a", { hasText: "Cotações Alfa" }).click();
+  await page.locator("#vPagina:not([hidden])").waitFor();
+  assert.equal(await page.inputValue("#pgTitulo"), "Cotações Alfa");
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
