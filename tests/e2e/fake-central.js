@@ -103,6 +103,13 @@
       return window.__fakeIA(turnos, usar);
     };
     servicos.sample = sample;
+    // conversas do assistente no banco privado (como na versão do Claude); fica no sessionStorage para sobreviver a recarregar
+    const ler = () => JSON.parse(sessionStorage.getItem("fake-iahist") || "{}"), escrever = (m) => sessionStorage.setItem("fake-iahist", JSON.stringify(m));
+    servicos.iahist = {
+      async lista() { return Object.values(ler()); },
+      async grava(c) { const m = ler(); m[c.id] = JSON.parse(JSON.stringify(c)); escrever(m); },
+      async apaga(id) { const m = ler(); delete m[id]; escrever(m); },
+    };
   }
   // notificações: os testes criam avisos com __fakeAviso (as regras de quem recebe são testadas no banco, tests/db)
   est.avisos = est.avisos || [];

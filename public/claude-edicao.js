@@ -197,6 +197,19 @@
       if (temAvisos === null) temAvisos = await sql("select to_regclass('public.central_notificacoes') is not null as ok").then((r) => !!r[0]?.ok, () => false);
       return temAvisos ? avisos : null;
     }
+    if (nome === "iahist") {
+      // conversas do assistente: banco próprio do artifact, área privada de quem está usando (sobrevive a recarregar e vale em qualquer aparelho)
+      try {
+        const db = await window.claude?.use?.("db"), u = await window.claude?.use?.("user"), id = await u?.id?.();
+        if (!db || !id) return null;
+        const col = db.collection("data/users/" + id);
+        return {
+          lista: async () => (await col.where("tipo", "==", "ia-conversa").get()).docs.map((d) => d.data()).filter(Boolean),
+          grava: (c) => col.doc("ia-" + c.id).set({ ...c, tipo: "ia-conversa" }),
+          apaga: (cid) => col.doc("ia-" + cid).delete(),
+        };
+      } catch (e) { return null; }
+    }
     if (nome === "anexos") return null; // o Claude não acessa o Storage: os arquivos abrem na Central do navegador
     if (nome === "mcp") return null; // a cópia de segurança antiga não é mais necessária: os dados já estão no Supabase
     return window.claude?.use?.(nome);

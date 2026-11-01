@@ -2305,10 +2305,27 @@ function iaBolha(quem,tx,naoGuardar){const d=document.createElement("div");d.cla
 let iaConvs=[],iaConvId=null,iaRepondo=false,iaCarregou=false;
 function iaTurno(...ms){iaTurnos.push(...ms);if(iaTurnos.length>16)iaTurnos.splice(0,iaTurnos.length-16);const c=iaConvAtual();c.turnos=iaTurnos;iaSalvarConvs()}
 const iaChave=()=>"ia-conversas-"+(meuId||"anon");
-function iaCarregar(){iaCarregou=true;const d=lsGet(iaChave(),null);iaConvs=d&&d.dia===hoje()&&Array.isArray(d.convs)?d.convs:[];iaConvId=iaConvs.length?iaConvs[iaConvs.length-1].id:null}
-function iaSalvarConvs(){let cs=iaConvs.filter(c=>c.itens.length).slice(-15);while(cs.length>1&&!lsSet(iaChave(),{dia:hoje(),convs:cs}))cs=cs.slice(1);if(cs.length<=1)lsSet(iaChave(),{dia:hoje(),convs:cs})}
+/* cópia no aparelho (localStorage) e, quando existe, no banco privado da pessoa (versão do Claude), que vale entre aparelhos e não some ao recarregar */
+let iaArm=null,iaArmP=null,iaSujas=new Set(),iaArmTimer=null;
+const iaArmazem=()=>iaArmP||(iaArmP=Promise.resolve(cUse("iahist")).then(a=>iaArm=a||null,()=>null));
+function iaCarregar(){iaCarregou=true;const d=lsGet(iaChave(),null);iaConvs=d&&d.dia===hoje()&&Array.isArray(d.convs)?d.convs:[];iaConvs.forEach(c=>c.dia=c.dia||hoje());iaConvId=iaConvs.length?iaConvs[iaConvs.length-1].id:null;iaSincronizar()}
+async function iaSincronizar(){const a=await iaArmazem();if(!a)return;let rem=[];try{rem=await a.lista()}catch(e){return}
+  const h=hoje();rem.filter(c=>c&&c.dia!==h&&c.id).forEach(c=>{try{a.apaga(c.id).catch(()=>{})}catch(e){}});/* conversa de outro dia: apaga */
+  let mudou=false;rem.filter(c=>c&&c.dia===h&&c.id&&Array.isArray(c.itens)).forEach(c=>{const l=iaConvs.find(x=>x.id===c.id);const r={id:c.id,dia:c.dia,inicio:c.inicio,titulo:c.titulo||"",itens:c.itens,turnos:Array.isArray(c.turnos)?c.turnos:[],em:c.em||""};
+    if(!l){iaConvs.push(r);mudou=true}else if((r.em||"")>(l.em||"")&&r.itens.length>=l.itens.length){Object.assign(l,r);mudou=true}});
+  iaConvs.filter(c=>c.itens.length&&!rem.some(r=>r&&r.id===c.id)).forEach(c=>iaSujas.add(c.id));
+  if(mudou){iaConvs.sort((x,y)=>(x.inicio||"").localeCompare(y.inicio||""));lsSet(iaChave(),{dia:h,convs:iaConvs.filter(c=>c.itens.length).slice(-15)});
+    if(!iaOcupado){const atual=iaConvs.find(x=>x.id===iaConvId);if(!atual||!atual.itens.length)iaConvId=iaConvs[iaConvs.length-1]?.id||null;if($("#ia").classList.contains("on"))iaMostrarConv();else iaMsgs.innerHTML=""}}
+  iaGravarRemoto()}
+function iaGravarRemoto(){clearTimeout(iaArmTimer);iaArmTimer=setTimeout(async()=>{const a=await iaArmazem();if(!a)return;
+  for(const id of [...iaSujas]){const c=iaConvs.find(x=>x.id===id);iaSujas.delete(id);if(!c||!c.itens.length)continue;
+    let d={id:c.id,dia:c.dia||hoje(),inicio:c.inicio,titulo:c.titulo,itens:c.itens,turnos:c.turnos||[],em:c.em||new Date().toISOString()};
+    while(JSON.stringify(d).length>200000&&d.itens.length>2)d={...d,itens:d.itens.slice(1),turnos:d.turnos.slice(2)};
+    try{await a.grava(d)}catch(e){iaSujas.add(id)}}},600)}
+function iaSalvarConvs(){const c=iaConvs.find(x=>x.id===iaConvId);if(c){c.em=new Date().toISOString();c.dia=c.dia||hoje();iaSujas.add(c.id)}
+  let cs=iaConvs.filter(c=>c.itens.length).slice(-15);while(cs.length>1&&!lsSet(iaChave(),{dia:hoje(),convs:cs}))cs=cs.slice(1);if(cs.length<=1)lsSet(iaChave(),{dia:hoje(),convs:cs});iaGravarRemoto()}
 function iaConvAtual(){
-  let c=iaConvs.find(x=>x.id===iaConvId);if(!c){c={id:novoId(),inicio:new Date().toISOString(),titulo:"",itens:[],turnos:[]};iaConvs.push(c);iaConvId=c.id}return c}
+  let c=iaConvs.find(x=>x.id===iaConvId);if(!c){c={id:novoId(),dia:hoje(),inicio:new Date().toISOString(),titulo:"",itens:[],turnos:[]};iaConvs.push(c);iaConvId=c.id}return c}
 function iaGuardar(it){if(iaRepondo)return null;const c=iaConvAtual();if(!c.titulo&&it.k==="msg"&&it.quem==="eu")c.titulo=it.tx.split("\n")[0].slice(0,60);c.itens.push(it);iaSalvarConvs();iaHistUI();return it}
 function iaHistUI(){const sel=$("#iaHist"),cs=iaConvs.filter(c=>c.itens.length);sel.hidden=!cs.length;if(!cs.length)return;
   const hm=x=>{const d=new Date(x);return pad(d.getHours())+":"+pad(d.getMinutes())};
