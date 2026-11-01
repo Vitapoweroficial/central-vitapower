@@ -642,3 +642,52 @@ test("Assistente edita a página aberta em vez de criar outra", async () => {
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Assistente: perguntas com calendário e pessoas, e a conversa do dia continua depois de recarregar", async () => {
+  const { page, ctx, erros } = await abrir({ ia: true });
+  await page.evaluate(() => {
+    window.__fakeIA = async (turnos) => {
+      const pedido = turnos[turnos.length - 1].content;
+      if (/^Respostas:/.test(pedido)) { window.__respostas = pedido; return { resposta: "Anotado, vou montar.", acoes: [] }; }
+      return { resposta: "Preciso de três coisas:", acoes: [], perguntas: [
+        { texto: "Qual o prazo do projeto?", tipo: "data" },
+        { texto: "Quem é o responsável?", tipo: "pessoa" },
+        { texto: "Qual o tipo?", tipo: "opcao", opcoes: ["Lançamento", "Reformulação"] },
+      ] };
+    };
+  });
+  await page.click("#btnIA");
+  await page.fill("#iaTexto", "Crie o projeto Linha Kids");
+  await page.press("#iaTexto", "Enter");
+  const perg = page.locator("#iaMsgs .perg").last();
+  await perg.waitFor();
+  assert.equal(await perg.locator('input[type="date"]').count(), 1);
+  await perg.locator("button", { hasText: "+1 semana" }).click();
+  const dt = await perg.locator('input[type="date"]').inputValue();
+  assert.match(dt, /^\d{4}-\d{2}-\d{2}$/);
+  const pessoa = await perg.locator("select option").nth(1).getAttribute("value");
+  await perg.locator("select").selectOption(pessoa);
+  await perg.locator("label", { hasText: "Reformulação" }).click();
+  await perg.locator('button[type="submit"]').click();
+  await page.locator("#iaMsgs .msg.bot", { hasText: "Anotado" }).waitFor();
+  const resp = await page.evaluate(() => window.__respostas);
+  assert.match(resp, new RegExp(`Qual o prazo do projeto\\? → .*\\(${dt}\\)`));
+  assert.match(resp, new RegExp(`\\(id ${pessoa}\\)`));
+  assert.match(resp, /Qual o tipo\? → Reformulação/);
+  assert.equal(await perg.locator(".lock", { hasText: "Respondido" }).count(), 1);
+  // recarregar não perde a conversa
+  await page.reload();
+  await page.waitForFunction(() => typeof window.__fakeEstado === "function");
+  await page.click("#btnIA");
+  await page.locator("#iaMsgs .msg.eu", { hasText: "Crie o projeto Linha Kids" }).waitFor();
+  await page.locator("#iaMsgs .msg.bot", { hasText: "Anotado" }).waitFor();
+  assert.equal(await page.locator("#iaMsgs .perg .lock", { hasText: "Respondido" }).count(), 1);
+  // nova conversa e volta para a anterior pela lista de hoje
+  await page.click("#iaNovo");
+  assert.equal(await page.locator("#iaMsgs .msg.eu").count(), 0);
+  const op = await page.locator("#iaHist option", { hasText: "Crie o projeto Linha Kids" }).getAttribute("value");
+  await page.selectOption("#iaHist", op);
+  await page.locator("#iaMsgs .msg.eu", { hasText: "Crie o projeto Linha Kids" }).waitFor();
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
