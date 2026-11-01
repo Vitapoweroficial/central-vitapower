@@ -605,3 +605,40 @@ test("Páginas na tarefa: + Página cria página ligada, a tarefa lista e a pág
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Assistente edita a página aberta em vez de criar outra", async () => {
+  const UID = "aaaaaaaa-0000-0000-0000-000000000001";
+  const doc = (colecao, doc_id, dados) => [colecao + "\u0000" + doc_id, { colecao, doc_id, dados: { _versao: 1, ...dados }, por: UID }];
+  const docs = Object.fromEntries([
+    doc("paginas", "pg1", { tipo: "pagina", titulo: "Comprar MP", icone: "📄", conteudo: "<p>Whey 10 kg</p><p>Creatina 5 kg</p>", ordem: 1 }),
+  ]);
+  const { page, ctx, erros } = await abrir({ semente: { docs, hist: [], seq: 0 }, ia: true });
+  await page.evaluate(() => {
+    window.__fakeIA = async (turnos) => {
+      const est = JSON.parse(turnos[0].content.split("ESTADO ATUAL DO APP:\n")[1]);
+      if (est.pagina_aberta?.id !== "pg1" || !/Whey 10 kg/.test(est.pagina_aberta.html)) throw new Error("sem a página aberta");
+      if (!/editar_pagina/.test(turnos[0].content)) throw new Error("regra sem editar_pagina");
+      return { resposta: "Transformei em tabela.", acoes: [{ tipo: "editar_pagina", id: "pg1", modo: "substituir", titulo: "Comprar MP e embalagens",
+        html: "<table><thead><tr><th>Item</th><th>Qtd</th></tr></thead><tbody><tr><td>Whey</td><td>10 kg</td></tr><tr><td>Creatina</td><td>5 kg</td></tr></tbody></table><ul class=\"todo\"><li>Conferir whey</li></ul>" }] };
+    };
+  });
+  await page.locator(".ni", { hasText: "Comprar MP" }).first().click();
+  await page.locator("#vPagina:not([hidden])").waitFor();
+  await page.click("#navIA");
+  await page.fill("#iaTexto", "transforme esta lista em tabela");
+  await page.press("#iaTexto", "Enter");
+  const plano = page.locator("#iaMsgs .plano").last();
+  await plano.locator("label", { hasText: "Editar página" }).waitFor();
+  await plano.locator('[data-pl="ok"]').click();
+  await plano.locator(".lock", { hasText: "1 mudança aplicada" }).waitFor();
+  const est = await estado(page), pgs = Object.values(est.docs).filter((d) => d.dados.tipo === "pagina");
+  assert.equal(pgs.length, 1, "não criou outra página");
+  assert.equal(pgs[0].dados.titulo, "Comprar MP e embalagens");
+  assert.match(pgs[0].dados.conteudo, /<table>/);
+  assert.match(pgs[0].dados.conteudo, /<ul class="todo">/);
+  // a tela mostra a página atualizada, sem recarregar
+  await page.locator("#ed table td", { hasText: "Creatina" }).waitFor();
+  assert.equal(await page.inputValue("#pgTitulo"), "Comprar MP e embalagens");
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
