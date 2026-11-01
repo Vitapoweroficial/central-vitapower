@@ -675,7 +675,10 @@ test("Assistente: perguntas com calendário e pessoas, e a conversa do dia conti
   assert.match(resp, new RegExp(`\\(id ${pessoa}\\)`));
   assert.match(resp, /Qual o tipo\? → Reformulação/);
   assert.equal(await perg.locator(".lock", { hasText: "Respondido" }).count(), 1);
-  // recarregar não perde a conversa
+  // recarregar não perde a conversa, mesmo se o navegador apagar o armazenamento local (vem do banco privado)
+  await page.waitForFunction(() => Object.values(JSON.parse(sessionStorage.getItem("fake-iahist") || "{}")).some((c) => c.itens.length >= 4));
+  await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith("ia-conversas")) localStorage.removeItem(k); });
+  await page.evaluate(() => { const m = JSON.parse(sessionStorage.getItem("fake-iahist") || "{}"); m.velha = { id: "velha", dia: "2020-01-01", itens: [{ k: "msg", quem: "eu", tx: "conversa antiga" }], turnos: [] }; sessionStorage.setItem("fake-iahist", JSON.stringify(m)); });
   await page.reload();
   await page.waitForFunction(() => typeof window.__fakeEstado === "function");
   await page.click("#btnIA");
@@ -688,6 +691,8 @@ test("Assistente: perguntas com calendário e pessoas, e a conversa do dia conti
   const op = await page.locator("#iaHist option", { hasText: "Crie o projeto Linha Kids" }).getAttribute("value");
   await page.selectOption("#iaHist", op);
   await page.locator("#iaMsgs .msg.eu", { hasText: "Crie o projeto Linha Kids" }).waitFor();
+  assert.equal(await page.locator("#iaHist option", { hasText: "conversa antiga" }).count(), 0);
+  await page.waitForFunction(() => !JSON.parse(sessionStorage.getItem("fake-iahist") || "{}").velha);
   assert.deepEqual(erros, []);
   await ctx.close();
 });
