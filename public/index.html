@@ -432,6 +432,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
 .dep .anxa{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
 .anxrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.anxrow small{color:var(--muted)}
 .lks.soltar,.pganx.soltar{outline:2px dashed var(--accent);outline-offset:4px;border-radius:10px}
+.pgtar{margin:4px 0 10px}
 .pganx{margin:18px 0 0;padding-top:12px;border-top:1px solid var(--line)}.pganx h3{font-size:13px;color:var(--muted);margin:0 0 8px;font-weight:600}.pganx .lks{margin-bottom:8px}
 .subs{display:grid;gap:3px}
 .sbt{display:flex;gap:8px;align-items:center;font-size:13px}
@@ -593,6 +594,7 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
           <div class="aprov" id="pgAprov" hidden></div>
           <div class="pgtop"><button class="pgic" id="pgIcone" type="button" aria-label="Trocar ícone">📄</button><input class="pgt" id="pgTitulo" placeholder="Sem título" autocomplete="off" aria-label="Título da página"></div>
           <div class="pgmeta" id="pgMeta"></div>
+          <div class="lks pgtar" id="pgTarefa" hidden></div>
           <div class="tb" id="tb" role="toolbar" aria-label="Formatação">
             <button type="button" data-cmd="h1" title="Título 1">T1</button><button type="button" data-cmd="h2" title="Título 2">T2</button><button type="button" data-cmd="h3" title="Título 3">T3</button><button type="button" data-cmd="p" title="Texto normal">¶</button><span class="sp"></span>
             <button type="button" data-cmd="bold" title="Negrito (Ctrl+B)"><b>B</b></button><button type="button" data-cmd="italic" title="Itálico (Ctrl+I)"><i>I</i></button><button type="button" data-cmd="underline" title="Sublinhado (Ctrl+U)"><u>U</u></button><button type="button" data-cmd="strikeThrough" title="Riscado"><s>S</s></button><span class="sp"></span>
@@ -650,6 +652,9 @@ label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
       <div class="lks" id="tLinks"></div>
       <div class="anxrow" id="tAnxRow"><button class="mv" type="button" id="tAnxBtn">📎 Anexar arquivo</button><input type="file" id="tAnxIn" multiple hidden><small id="tAnxNota"></small></div>
       <div class="ckrow"><input type="text" id="tLinkNome" placeholder="Nome (opcional)" autocomplete="off" style="flex:0 1 38%"><input type="url" id="tLinkUrl" placeholder="https://…" autocomplete="off"><button class="mv" type="button" id="tLinkAdd">+ Link</button></div></div>
+    <div class="blk" id="tPgB" hidden><span class="bt">Páginas <small>Anotações, cotações, fórmulas… ligadas a esta tarefa</small></span>
+      <div class="lks" id="tPgs"></div>
+      <div><button class="mv" type="button" id="tPgAdd">+ Página</button></div></div>
     <div class="blk" id="tComB"><span class="bt">Comentários</span>
       <div class="coms" id="tComs"></div>
       <div class="ckrow"><textarea id="tComTx" rows="1" placeholder="Escreva um comentário… (Enter envia)"></textarea><button class="mv" type="button" id="tComAdd">Comentar</button></div></div>
@@ -1608,7 +1613,7 @@ function renderExtrasDlg(d){
   $("#tDeps").innerHTML=depTmp.map((id,i)=>{const x=todas().find(y=>y.id===id);if(!x)return "";return `<span class="dep ${x.status==="feito"?"ok":"pend"}" title="${x.status==="feito"?"Concluída":"Ainda não concluída"}"><span>${x.status==="feito"?"✓":"⏳"} ${esc(curtoT(x.titulo))}</span>${podeEscrever?`<button class="xbtn" type="button" data-depx="${i}" aria-label="Remover dependência">×</button>`:""}</span>`}).join("")||`<span class="lock">Nenhuma.</span>`;
   $("#tDepAdd").innerHTML=`<option value="">+ Adicionar tarefa da qual esta depende…</option>`+cand.filter(x=>x.status!=="feito"&&!depTmp.includes(x.id)&&!desc.has(x.id)&&!(x.dependeDe||[]).includes(selfId)).map(opt).join("");$("#tDepAdd").hidden=!podeEscrever;
   const subs=selfId?todas().filter(x=>x.paiId===selfId&&!x.arquivado).sort((a,b)=>(a.status==="feito")-(b.status==="feito")||(a.prazo||"9999").localeCompare(b.prazo||"9999")):[];
-  $("#tSubB").hidden=!selfId;
+  $("#tSubB").hidden=!selfId;renderPgsDlg(d);
   $("#tSubs").innerHTML=subs.map(x=>{const sp=situPrazo(x);return `<div class="sbt ${x.status==="feito"?"ok":""}"><input type="checkbox" data-subck="${esc(x.id)}" ${x.status==="feito"?"checked":""} ${podeEscrever?"":"disabled"} aria-label="Concluída"><button type="button" class="st" data-subab="${esc(x.id)}" title="Abrir subtarefa">${esc(x.titulo||"(sem título)")}</button>${sp?`<span class="due ${sp.c}">${esc(sp.tx)}</span>`:""}</div>`}).join("")||`<span class="lock">Nenhuma ainda.</span>`;
   const podeAnx=podeEscrever&&podeEditarTarefaEm(pj);
   $("#tLinks").innerHTML=(htmlAnexos(anxTmp,podeAnx,"t")+linkTmp.map((l,i)=>`<span class="dep"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">🔗 ${esc(l.nome||l.url.replace(/^https?:\/\//,"").slice(0,40))}</a>${podeEscrever?`<button class="xbtn" type="button" data-lkx="${i}" aria-label="Remover link">×</button>`:""}</span>`).join(""))||`<span class="lock">Nenhum.</span>`;
@@ -1690,9 +1695,10 @@ $("#tCancel").addEventListener("click",()=>$("#dlgT").close());
 $("#tDel").addEventListener("click",()=>{$("#tConf").hidden=false;$("#tActs").hidden=true});
 $("#tConfN").addEventListener("click",()=>{$("#tConf").hidden=true;$("#tActs").hidden=false});
 $("#tConfS").addEventListener("click",async()=>{if(editT&&await excluirTarefa(editT)){$("#dlgT").close();toast("Tarefa excluída")}});
-$("#frmT").addEventListener("submit",async e=>{e.preventDefault();if(!podeEscrever)return;
-  const tt=$("#tTitulo").value.trim();if(!tt){$("#tTitulo").focus();return}
-  const ini=$("#tInicio").value||null,pz=$("#tPrazo").value||null;if(ini&&pz&&ini>pz){toast("O início está depois do prazo. Confira as datas.",3500);$("#tInicio").focus();return}
+$("#frmT").addEventListener("submit",e=>{e.preventDefault();salvarDlgT()});
+async function salvarDlgT(){if(!podeEscrever)return false;
+  const tt=$("#tTitulo").value.trim();if(!tt){$("#tTitulo").focus();return false}
+  const ini=$("#tInicio").value||null,pz=$("#tPrazo").value||null;if(ini&&pz&&ini>pz){toast("O início está depois do prazo. Confira as datas.",3500);$("#tInicio").focus();return false}
   const priv=visAtual()==="eu",rv=$("#tResp").value;let respId=null,respNome=null;
   if(!priv){if(rv.startsWith("u:"))respId=rv.slice(2);else if(rv.startsWith("n:"))respNome=rv.slice(2);else if(rv==="__outro")respNome=$("#tRespNome").value.trim()||null}
   const antes=editT,st=$("#tStatus").value;
@@ -1700,10 +1706,29 @@ $("#frmT").addEventListener("submit",async e=>{e.preventDefault();if(!podeEscrev
     aguardando:st==="aguardando"?($("#tWait").value.trim()||null):null,respId,respNome,campos:lerCamposDlg(antes?.campos),recorrencia:$("#tRep").value||null,paiId:$("#tPai").value||null,dependeDe:depTmp.filter(id=>todas().some(x=>x.id===id)),links:linkTmp,anexos:anxTmp,checklist:ckTmp.filter(x=>x.t&&x.t.trim()).map(x=>({id:x.id,t:x.t.trim(),ok:!!x.ok}))};
   if(antes&&antes.status!==st){t.historico=[...(antes.historico||[]),{de:antes.status,para:st,em:new Date().toISOString(),por:meuId||null}];t.ordem=Date.now()}
   if(!antes)t.ordem=Date.now();
-  if(!modoLocal&&((priv&&!colEu)||(!priv&&!colT))){toast("Carregando… tente de novo em alguns segundos");return}
+  if(!modoLocal&&((priv&&!colEu)||(!priv&&!colT))){toast("Carregando… tente de novo em alguns segundos");return false}
   $("#tSalvar").disabled=true;const ok=await salvarTarefa(t,antes);$("#tSalvar").disabled=false;
   if(ok){$("#dlgT").close();toast(antes?"Tarefa salva":(priv?"Tarefa criada (só você vê)":"Tarefa criada para o time"))}
-});
+  return ok?t:false}
+/* páginas ligadas à tarefa (a página guarda tarefaId; tarefa "só eu" → página pessoal, senão → página do time) */
+const pgsDaTarefa=id=>id?[...pagT.map(p=>({p,esp:"t"})),...pagP.map(p=>({p,esp:"p"}))].filter(x=>x.p.tarefaId===id).sort((a,b)=>(a.p.criadoEm||"").localeCompare(b.p.criadoEm||"")):[];
+function renderPgsDlg(d){
+  const id=d?.id||null,l=pgsDaTarefa(id);
+  $("#tPgB").hidden=!id||(!l.length&&!podeEscrever);
+  $("#tPgs").innerHTML=l.map(x=>`<span class="dep"><a href="#" data-tpg="${esc(x.p.id)}" data-esp="${x.esp}">${esc(x.p.icone||"📄")} ${esc(curtoT(x.p.titulo||"Sem título"))}${x.esp==="p"?" 🔒":""}</a></span>`).join("");
+  $("#tPgAdd").hidden=!podeEscrever}
+async function tarefaAntesDePagina(){/* salva o que foi mudado no diálogo antes de sair para a página */
+  const t=editT;if(!t)return null;
+  if(podeEscrever&&!$("#tSalvar").hidden&&!$("#tSalvar").disabled){const r=await salvarDlgT();if(!r)return null;return r}
+  $("#dlgT").close();return t}
+$("#tPgB").addEventListener("click",async e=>{
+  const a=e.target.closest("[data-tpg]");
+  if(a){e.preventDefault();const ref={id:a.dataset.tpg,esp:a.dataset.esp};if(!await tarefaAntesDePagina())return;ir("pagina",{pg:ref});return}
+  if(e.target.closest("#tPgAdd")){if(!podeEscrever)return;const t=await tarefaAntesDePagina();if(!t)return;
+    criarPagina(t._priv?"p":"t",null,null,{titulo:String(t.titulo||"").slice(0,200),tarefaId:t.id})}});
+$("#pgTarefa").addEventListener("click",async e=>{if(!e.target.closest("[data-pgtar]"))return;e.preventDefault();
+  const p=pagDe(pgAtual),t=p?.tarefaId&&todas().find(x=>x.id===p.tarefaId);if(!t){toast("Essa tarefa foi excluída ou você não tem acesso a ela.",3000);return}
+  if(pgSujo)await salvarPaginaAtual();abrirTarefa(t)});
 $("#btnNova").addEventListener("click",()=>{if(podeEscrever)abrirTarefa(null)});
 
 /* ---------- diálogo de projeto ---------- */
@@ -1854,10 +1879,10 @@ async function salvarPag(p,esp){
 async function excluirPag(p,esp){
   if(modoLocal){if(esp==="p")pagP=pagP.filter(x=>x.id!==p.id);else pagT=pagT.filter(x=>x.id!==p.id);gravarLocal();return true}
   try{await (esp==="p"?colEu:colPg).doc(p.id).delete();if(esp==="p")pagP=pagP.filter(x=>x.id!==p.id);else pagT=pagT.filter(x=>x.id!==p.id);return true}catch(e){toast("Não foi possível excluir a página");return false}}
-async function criarPagina(esp,parentId,modelo){
+async function criarPagina(esp,parentId,modelo,extra){
   if(!podeEscrever)return;if(esp==="p"&&!colEu&&!modoLocal){toast("Páginas pessoais não estão disponíveis nesta tela");return}
   if(!modoLocal&&esp==="t"&&!colPg){toast("Carregando… tente de novo em alguns segundos");return}
-  const p={id:novoId(),titulo:"",icone:"📄",parentId:parentId||null,conteudo:"",ordem:Date.now(),criadoPor:meuId||null};
+  const p={id:novoId(),titulo:"",icone:"📄",parentId:parentId||null,conteudo:"",ordem:Date.now(),criadoPor:meuId||null,...(extra||{})};
   if(await salvarPag(p,esp)){if(parentId){abertos.add(parentId);lsSet("tarefas-arvore",[...abertos])}await ir("pagina",{pg:{id:p.id,esp}});setTimeout(()=>{if(!ed.contains(document.activeElement))$("#pgTitulo").focus()},60)}}
 function editavel(){return podeEscrever&&!pgTrava&&!["aprovado","obsoleto"].includes(estadoPg(pagDe(pgAtual)))}
 function marcaVazio(){ed.classList.toggle("vazio",!ed.textContent.trim()&&!ed.querySelector("hr,table,li"))}
@@ -1876,6 +1901,7 @@ function renderPagina(){
   const autor=p.editadoPor&&p.editadoPor!==meuId?(nomesU[p.editadoPor]||"alguém do time"):"você";
   $("#pgMeta").textContent=p.atualizadoEm?`Editada por ${autor} em ${fmtDT(p.atualizadoEm)}`:"";
   renderDocEstado(p);
+  {const t=p.tarefaId?todas().find(x=>x.id===p.tarefaId):null,el=$("#pgTarefa");el.hidden=!t;el.innerHTML=t?`<span class="dep"><a href="#" data-pgtar="1">📌 Página da tarefa “${esc(curtoT(t.titulo))}”</a></span>`:""}
   $("#pgMover").hidden=!podeEscrever||(!colEu&&!modoLocal);$("#pgMover").textContent=pgAtual.esp==="p"?"Mover para o Time":"Mover para Pessoal";$("#pgExcluir").hidden=!podeEscrever||pgTrava;$("#pgVer").hidden=!hist;
   $("#modelos").hidden=!pode||!!ed.textContent.trim()||!!ed.querySelector("hr,table,li");
   if(!$("#modelos").hidden)$("#modelos").innerHTML=`<span>Começar com um modelo:</span>${Object.entries(MODELOS).map(([k,m])=>`<button class="btn sm" type="button" data-mod="${k}">${m.ic} ${m.nome}</button>`).join("")}`;
