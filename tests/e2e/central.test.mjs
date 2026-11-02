@@ -730,3 +730,21 @@ test("Rotina: projeto de rotina pelo modelo, aba Rotina agrupa por frequência e
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Como usar: guia abre pelo menu e pelo link da tela, busca e leva para a tela explicada", async () => {
+  const { page, ctx, erros } = await abrir();
+  await page.click('#navAt [data-go="ajuda"]');
+  await page.locator("#vAjuda .ajsec").first().waitFor();
+  assert.equal(await page.locator("#vAjuda .ajsec").count(), 13);
+  await page.fill("#ajQ", "gantt");
+  assert.equal(await page.locator("#vAjuda .ajsec").count(), 1);
+  assert.ok(await page.locator("#aj-tarefas").evaluate((d) => d.open));
+  await page.fill("#ajQ", "");
+  await page.click('#navAt [data-go="rotina"]');
+  await page.click("#btnComo");
+  assert.ok(await page.locator("#aj-rotina").evaluate((d) => d.open));
+  await page.click('[data-ajgo="rotina"]');
+  assert.equal(await page.textContent("#titulo"), "Rotina");
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
