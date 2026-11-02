@@ -748,3 +748,16 @@ test("Como usar: guia abre pelo menu e pelo link da tela, busca e leva para a te
   assert.deepEqual(erros, []);
   await ctx.close();
 });
+
+test("Assistente no celular: botão Voltar fecha o chat e volta para a tela em que estava", async () => {
+  const { page, ctx, erros } = await abrir({ largura: 390, ia: true });
+  await page.click('#tabbar [data-go="projetos"]');
+  await page.evaluate(() => iaAbrir());
+  await page.locator("#ia.on").waitFor();
+  assert.ok(await page.locator("#iaVoltar").isVisible());
+  await page.click("#iaVoltar");
+  assert.equal(await page.locator("#ia.on").count(), 0);
+  assert.equal(await page.textContent("#titulo"), "Projetos");
+  assert.deepEqual(erros, []);
+  await ctx.close();
+});
