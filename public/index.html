@@ -596,6 +596,15 @@ dialog::backdrop{background:rgba(23,31,38,.45)}
 .ajb p{margin:6px 0 0}.ajb ul{margin:0;padding-left:20px;display:grid;gap:5px}
 .ajdica{background:var(--sunk);border-left:3px solid var(--brand);border-radius:6px;padding:8px 12px;font-size:13.5px}
 .ajsec{scroll-margin-top:12px}
+.iavolta{display:none}
+@media (max-width:700px){
+  .iah{gap:6px;padding:10px 10px 10px 12px}
+  .iavolta{display:inline-flex;align-items:center;min-height:40px;font-size:14px;padding:6px 12px}
+  .iah .iaest,.iah b small,.iah .iaconv{display:none}
+  .iah b{font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #iaX{min-width:44px;min-height:44px;font-size:24px}
+  #iaHist{max-width:110px}
+}
 .tabbar{display:none}
 @media (max-width:900px){
   .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around}
@@ -815,7 +824,7 @@ dialog::backdrop{background:rgba(23,31,38,.45)}
   </form>
 </dialog>
 <aside class="ia" id="ia" aria-label="Assistente" aria-hidden="true">
-  <div class="iah"><span style="font-size:20px">✨</span><b>Assistente<small>Lê suas tarefas e projetos. Nada muda sem você aplicar.</small></b><select id="iaHist" aria-label="Conversas de hoje" title="Conversas de hoje (ficam guardadas até o fim do dia)" hidden></select><button class="btn sm" type="button" id="iaNovo" title="Começar uma conversa nova">Nova conversa</button><button class="xbtn" type="button" id="iaX" aria-label="Fechar assistente">×</button></div>
+  <div class="iah"><button class="btn sm iavolta" type="button" id="iaVoltar" aria-label="Fechar o assistente e voltar para a tela">‹ Voltar</button><span class="iaest" style="font-size:20px">✨</span><b>Assistente<small>Lê suas tarefas e projetos. Nada muda sem você aplicar.</small></b><select id="iaHist" aria-label="Conversas de hoje" title="Conversas de hoje (ficam guardadas até o fim do dia)" hidden></select><button class="btn sm" type="button" id="iaNovo" title="Começar uma conversa nova">Nova<span class="iaconv"> conversa</span></button><button class="xbtn" type="button" id="iaX" aria-label="Fechar assistente">×</button></div>
   <div class="iam" id="iaMsgs" aria-live="polite"></div>
   <div class="iasug" id="iaSug"></div>
   <div class="iaanx" id="iaAnx" hidden></div><form class="iaf" id="iaForm" autocomplete="off"><button class="btn" type="button" id="iaClip" title="Anexar foto, print ou PDF" aria-label="Anexar arquivo" hidden>📎</button><input type="file" id="iaArq" multiple hidden><textarea id="iaTexto" rows="1" placeholder="Peça algo ao assistente…" aria-label="Mensagem para o assistente"></textarea><button class="btn primary" type="submit" id="iaEnviar">Enviar</button><button class="btn" type="button" id="iaParar" hidden>Parar</button></form>
@@ -2807,7 +2816,7 @@ document.addEventListener("dragenter",e=>{if(!iaSample||!temArq(e))return;dragN+
 document.addEventListener("dragleave",e=>{if(!iaSample||!temArq(e))return;if(--dragN<=0){dragN=0;$("#dropOv").hidden=true}});
 document.addEventListener("dragover",e=>{if(iaSample&&temArq(e))e.preventDefault()});
 document.addEventListener("drop",e=>{if(!iaSample||!temArq(e))return;e.preventDefault();dragN=0;$("#dropOv").hidden=true;if(e.dataTransfer.files.length){iaAbrir();iaAddArquivos(e.dataTransfer.files)}});
-$("#btnIA").addEventListener("click",()=>iaAbrir());$("#navIA").addEventListener("click",()=>iaAbrir());$("#iaX").addEventListener("click",iaFechar);
+$("#btnIA").addEventListener("click",()=>iaAbrir());$("#navIA").addEventListener("click",()=>iaAbrir());$("#iaX").addEventListener("click",iaFechar);$("#iaVoltar").addEventListener("click",iaFechar);
 $("#iaNovo").addEventListener("click",()=>{if(iaOcupado)return;if(!iaCarregou)iaCarregar();iaConvId=null;iaMostrarConv()});
 $("#iaHist").addEventListener("change",e=>{if(iaOcupado||!e.target.value){iaHistUI();return}iaConvId=e.target.value;iaMostrarConv()});
 $("#iaParar").addEventListener("click",()=>iaCtl?.abort());
