@@ -581,6 +581,21 @@ textarea{min-height:0}
 dialog{border-radius:12px}
 dialog::backdrop{background:rgba(23,31,38,.45)}
 .toast{border-radius:10px;padding:12px 16px;font-size:14px}
+.ajctx{display:block;margin:4px 0 0;padding:0;border:0;background:none;font:600 12.5px var(--f-body);color:var(--brand);cursor:pointer;text-align:left}
+.ajctx:hover{text-decoration:underline}
+.aj .chips{gap:6px}
+.ajsec>summary{list-style:none;cursor:pointer;display:flex;gap:12px;align-items:center;padding:12px 14px}
+.ajsec>summary::-webkit-details-marker{display:none}
+.ajsec>summary::after{content:"▸";margin-left:auto;color:var(--muted);transition:transform .15s}
+.ajsec[open]>summary::after{transform:rotate(90deg)}
+.ajsec[open]>summary{border-bottom:1px solid var(--line)}
+.ajsec>summary b{display:block;font-family:var(--f-display);font-size:15.5px}
+.ajsec>summary small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.ajic{font-size:22px;line-height:1;flex:none;width:28px;text-align:center}
+.ajb{padding:4px 16px 14px;font-size:14px;line-height:1.55;display:grid;gap:8px}
+.ajb p{margin:6px 0 0}.ajb ul{margin:0;padding-left:20px;display:grid;gap:5px}
+.ajdica{background:var(--sunk);border-left:3px solid var(--brand);border-radius:6px;padding:8px 12px;font-size:13.5px}
+.ajsec{scroll-margin-top:12px}
 .tabbar{display:none}
 @media (max-width:900px){
   .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around}
@@ -615,6 +630,7 @@ dialog::backdrop{background:rgba(23,31,38,.45)}
       <button type="button" class="ni" data-go="time"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg></span><span class="tx">Tarefas do time</span><span class="n" id="nTime"></span></button>
       <button type="button" class="ni" data-go="projetos"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span><span class="tx">Projetos</span><span class="n" id="nProj"></span></button>
       <button type="button" class="ni" data-go="lixeira" id="navLix" hidden><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span><span class="tx">Lixeira</span></button>
+      <button type="button" class="ni" data-go="ajuda"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17.5v.01"/></svg></span><span class="tx">Como usar</span></button>
     </nav>
     <div class="sec"><div class="sech"><span>🔒 Pessoal</span><button type="button" id="addPessoal" title="Nova página pessoal" aria-label="Nova página pessoal">+</button></div><div class="tree" id="treeP"></div></div>
     <div class="sec"><div class="sech"><span>Time</span><button type="button" id="addTime" title="Nova página do time" aria-label="Nova página do time">+</button></div><div class="tree" id="treeT"></div></div>
@@ -629,7 +645,7 @@ dialog::backdrop{background:rgba(23,31,38,.45)}
   <div class="main">
     <div class="wrap">
       <header class="top">
-        <div class="ttl"><button class="btn menu-b" id="btnMenu" type="button" aria-label="Abrir menu">☰</button><div style="min-width:0"><h1 id="titulo">Minhas tarefas</h1><p class="sub" id="subt"></p></div></div>
+        <div class="ttl"><button class="btn menu-b" id="btnMenu" type="button" aria-label="Abrir menu">☰</button><div style="min-width:0"><h1 id="titulo">Minhas tarefas</h1><p class="sub" id="subt"></p><button class="ajctx" id="btnComo" type="button" data-ajuda="" hidden>Como funciona esta tela?</button></div></div>
         <div class="hbtns" id="hbtns"><button class="btn ia-b" id="btnIA" type="button" hidden>✨ Assistente</button><button class="btn" id="btnNovoProj" type="button">+ Projeto</button><button class="btn primary" id="btnNova" type="button">+ Nova tarefa</button></div>
       </header>
       <div class="tools" id="tools">
@@ -661,6 +677,7 @@ dialog::backdrop{background:rgba(23,31,38,.45)}
       <section id="vLixeira" hidden><div class="lx" id="lixeira"></div></section>
       <section id="vAvisos" hidden><div class="avl" id="avisos"></div></section>
       <section id="vComando" hidden><div id="comando" class="hj"></div></section>
+      <section id="vAjuda" hidden><div id="ajuda" class="hj aj"></div></section>
       <section id="vPainel" hidden><div style="display:grid;gap:12px"><div class="chips" id="chipsRespP"></div><div id="painel" style="display:grid;gap:12px"></div></div></section>
       <section id="vPagina" hidden>
         <div class="pg">
@@ -971,18 +988,132 @@ $("#sbusca").addEventListener("input",renderSide);
 $("#addPessoal").addEventListener("click",()=>criarPagina("p",null));
 $("#addTime").addEventListener("click",()=>criarPagina("t",null));
 
+/* ---------- Como usar (tutorial para o time) ---------- */
+// Só texto: não lê nem grava nada no banco. Cada seção tem um botão para abrir a tela que ela explica.
+const AJUDA=[
+  {id:"comecar",ic:"🚀",t:"Primeiros passos",r:"Como entrar, o que é Pessoal e Time, e onde fica cada coisa.",b:`
+<p>A Central é onde o time organiza <b>tarefas</b>, <b>projetos</b> e <b>páginas</b> (anotações, atas, procedimentos). Tudo fica salvo na nuvem e aparece igual no computador e no celular.</p>
+<ul><li><b>Entrar:</b> digite o seu e-mail @vitapowernutrition.com.br. Chega um e-mail com um link (ou um código). Não tem senha.</li>
+<li><b>🔒 Só eu x Time:</b> o que você marca como “Só eu” só você vê. O que é do “Time” todo mundo vê.</li>
+<li><b>Menu da esquerda:</b> no alto ficam as telas (Hoje, Rotina, Tarefas, Projetos…). Embaixo ficam as suas páginas pessoais e as páginas do time.</li>
+<li><b>No celular:</b> a barra de baixo tem Hoje, Tarefas, Projetos e Painel. Em <b>Mais</b> abre o menu completo.</li>
+<li><b>Botões do alto:</b> “+ Nova tarefa” e “+ Projeto” aparecem em quase todas as telas.</li></ul>
+<div class="ajdica">💡 Por onde começar: abra <b>Hoje</b> toda manhã, marque ✓ no que fizer e mantenha o prazo e o responsável das suas tarefas sempre preenchidos.</div>`},
+  {id:"hoje",go:"hoje",ic:"☀️",t:"Hoje",r:"O que pede a sua atenção agora.",b:`
+<p>A primeira tela do dia. Mostra só o que é seu: o que está atrasado, o que vence hoje e os próximos 3 dias úteis.</p>
+<ul><li><b>☆ Foco do dia:</b> clique na estrela de uma tarefa para colocá-la no seu foco de hoje. A barra do alto mostra quanto do dia você já fez.</li>
+<li><b>Marcar como feito:</b> clique na caixinha ao lado da tarefa.</li>
+<li><b>Aguardando há 5 dias ou mais:</b> tarefas paradas esperando alguém. Hora de cobrar.</li>
+<li><b>🗓️ Revisão semanal:</b> leva 5 minutos. Passa pelo que você concluiu, pelo que atrasou, pelo que está aguardando e pelo que vence na semana, para você reorganizar.</li></ul>`},
+  {id:"rotina",go:"rotina",ic:"🔁",t:"Rotina",r:"O dia a dia que se repete: diárias, semanais e mensais.",b:`
+<p>Aqui ficam as tarefas que se repetem, separadas em <b>diárias</b>, <b>semanais</b> e <b>mensais</b>. Use os botões <b>Minhas</b> e <b>Todo o time</b> para trocar a visão.</p>
+<ul><li><b>Como uma tarefa vira rotina:</b> na tarefa, escolha no campo <b>Repetir</b> (todo dia, dias úteis, toda semana, a cada 2 semanas ou todo mês).</li>
+<li><b>Marque ✓ quando fizer:</b> a próxima vez já entra sozinha na data certa. Não precisa criar de novo.</li>
+<li><b>Projeto de rotina:</b> um projeto marcado como “Projeto de rotina” junta o dia a dia que não é de um cliente. Ele não aparece como atrasado nem em risco. O botão <b>+ Projeto de rotina</b> cria um já com um modelo pronto.</li></ul>`},
+  {id:"tarefas",go:"minhas",ic:"✅",t:"Minhas tarefas e Tarefas do time",r:"As listas de tarefas e as 6 formas de ver.",b:`
+<p><b>Minhas tarefas</b> mostra as suas tarefas pessoais e as do time em que você é o responsável. <b>Tarefas do time</b> mostra tudo o que a equipe está fazendo.</p>
+<ul><li><b>Criar rápido:</b> escreva na caixa do alto e tecle Enter. Dá para escolher prioridade e prazo ali mesmo.</li>
+<li><b>Contadores coloridos</b> (Atrasadas, Vencem hoje, Próximos 7 dias, Fazendo agora, Concluídas na semana): clique em um para ver só aquelas. Clique de novo para ver tudo.</li>
+<li><b>Filtros:</b> busca por texto, projeto, prioridade e etiquetas. No filtro de projeto existe a opção <b>Sem projeto</b>, para achar tarefas soltas.</li></ul>
+<p><b>Formas de ver</b> (botões no alto):</p>
+<ul><li><b>Kanban:</b> colunas A fazer, Fazendo, Aguardando e Feito. Arraste o cartão de uma coluna para outra. No seletor “Colunas” dá para trocar as colunas por responsável, prioridade, etapas do fluxo ou um campo personalizado.</li>
+<li><b>Lista:</b> tudo em linhas, bom para ver muita coisa de uma vez.</li>
+<li><b>Por projeto:</b> as tarefas separadas por projeto. As que não têm projeto ficam no grupo <b>Sem projeto</b>.</li>
+<li><b>Calendário:</b> as tarefas no dia do prazo. Arraste para outro dia para mudar o prazo. Clique num dia para ver a lista ou criar tarefa nele.</li>
+<li><b>Linha do tempo:</b> cada tarefa é uma barra do início ao prazo (gráfico de Gantt). Com o mouse, arraste o meio para mover as datas, ou as pontas para mudar só o início ou só o prazo. As setas mostram as dependências.</li>
+<li><b>Carga:</b> quantas tarefas cada pessoa tem por semana. Em vermelho, quem está acima do limite. Clique num número para ver as tarefas.</li></ul>`},
+  {id:"tarefa",ic:"📝",t:"Uma tarefa por dentro",r:"Todos os campos de uma tarefa, um por um.",b:`
+<p>Clique em qualquer tarefa para abrir. O que tem lá:</p>
+<ul><li><b>Situação:</b> A fazer, Fazendo, Aguardando (diga quem ou o quê está aguardando) ou Feito.</li>
+<li><b>Início e Prazo:</b> o prazo é o que conta para “atrasada”. O início aparece na linha do tempo.</li>
+<li><b>Prioridade:</b> alta, média ou baixa.</li>
+<li><b>Quem vê:</b> 🔒 Só eu ou Time. <b>Responsável:</b> quem vai fazer. Para alguém que não usa o app, escolha “+ Outra pessoa” e escreva o nome.</li>
+<li><b>Checklist:</b> passos pequenos dentro da tarefa.</li>
+<li><b>Repetir:</b> transforma a tarefa em rotina (veja Rotina).</li>
+<li><b>Faz parte de / Subtarefas:</b> para quebrar uma tarefa grande em menores.</li>
+<li><b>Depende de:</b> a tarefa só deve começar quando as outras terminarem. Enquanto isso ela aparece como ⛔ bloqueada.</li>
+<li><b>Links e anexos:</b> cole links (Drive, pedidos…) ou clique em <b>📎 Anexar arquivo</b> para subir PDFs e fotos (até 25 MB cada).</li>
+<li><b>Páginas:</b> o botão <b>+ Página</b> cria uma página ligada à tarefa, para cotações, fórmulas e anotações. A página mostra de qual tarefa ela é.</li>
+<li><b>Comentários:</b> converse sobre a tarefa. Escreva <b>@</b> e o nome de alguém para avisar a pessoa.</li>
+<li><b>Histórico e Versões:</b> mostram quem mudou o quê. Dá para voltar para uma versão antiga.</li></ul>
+<div class="ajdica">💡 Tarefa sem prazo e sem responsável some do radar. Sempre preencha os dois.</div>`},
+  {id:"projetos",go:"projetos",ic:"🗂️",t:"Projetos",r:"Agrupar tarefas, entregas e prazos de cada cliente ou lançamento.",b:`
+<p>Um projeto junta tudo de um mesmo trabalho: por exemplo, um cliente (BARI4YOU) ou um lançamento. Clique num projeto para ver só as tarefas dele, em todas as formas de ver.</p>
+<ul><li><b>Criar:</b> botão <b>+ Projeto</b>. Dá para começar de um <b>modelo</b> (Lançamento de produto, Regularização ANVISA, Campanha de marketing, Desenvolvimento de fórmula, Rotina do dia a dia), que já cria as tarefas.</li>
+<li><b>Checklist do projeto:</b> as entregas e marcos (ex.: Fórmula aprovada). Com data, aparecem na linha do tempo.</li>
+<li><b>Saúde:</b> cada projeto mostra <b>No prazo</b>, <b>Em risco</b> (falta 1 semana e menos de 70% pronto, ou tem tarefa atrasada) ou <b>Atrasado</b>.</li>
+<li><b>Situação:</b> Ativo, Pausado ou Concluído. Use os botões do alto para filtrar.</li>
+<li><b>Quem tem acesso:</b> “Todo o time” (todos editam) ou “Só as pessoas escolhidas”, onde cada pessoa pode ser editor, só leitura ou sem acesso. Só quem criou o projeto (o dono) muda isso e pode excluir o projeto.</li></ul>`},
+  {id:"paginas",ic:"📄",t:"Páginas",r:"Anotações, atas, procedimentos e documentos.",b:`
+<p>No menu da esquerda ficam as páginas <b>🔒 Pessoais</b> (só você vê) e as do <b>Time</b>. Clique no <b>+</b> para criar. Uma página pode ter subpáginas.</p>
+<ul><li><b>Escrever:</b> use a barra de botões (títulos, negrito, listas, ☑ checklist, tabela, destaque, link) ou digite <b>/</b> para escolher um bloco.</li>
+<li><b>Modelos:</b> numa página nova, comece com Ata de reunião, Procedimento (POP), Briefing de projeto ou Lista de verificação.</li>
+<li><b>⚖️ Decisão:</b> registra uma decisão. Todas aparecem juntas na Central de Comando.</li>
+<li><b>➕ Tarefa:</b> selecione um trecho do texto e clique para transformar em tarefa.</li>
+<li><b>Situação do documento:</b> 📝 Rascunho, 👀 Em revisão, ✅ Aprovado ou 🗄️ Obsoleto. Em <b>Pedir aprovação…</b> você escolhe quem aprova, e a pessoa é avisada.</li>
+<li><b>Salva sozinha</b> enquanto você escreve. Se outra pessoa estiver editando a mesma página, você vê um aviso e pode só ler até ela terminar.</li>
+<li><b>Mover</b> leva a página de Pessoal para o Time (ou o contrário). <b>Versões</b> mostra as versões antigas.</li>
+<li><b>📎 Anexos:</b> no fim da página, clique em “Anexar arquivo” ou arraste fotos e PDFs.</li></ul>`},
+  {id:"comando",go:"comando",ic:"🎯",t:"Central de Comando",r:"Tudo o que está travado ou pedindo ação, no time inteiro.",b:`
+<p>Uma visão do time todo, para quem coordena. Cada quadrinho é um sinal de alerta. Clique no número para ver a lista e numa linha para abrir.</p>
+<ul><li>🔴 <b>Atrasadas</b> e 🟠 <b>Vencem em até 3 dias úteis</b></li>
+<li>⛔ <b>Bloqueadas:</b> dependem de outra tarefa que não terminou</li>
+<li>👤 <b>Sem responsável:</b> tarefa do time sem ninguém definido</li>
+<li>⏳ <b>Aguardando há mais de 7 dias</b> e 🧊 <b>Fazendo sem mexer há 7 dias</b></li>
+<li>📁 <b>Projetos atrasados ou em risco</b> e 💤 <b>Projetos parados</b> há 14 dias</li>
+<li>✍️ <b>Aprovações esperando por você</b> e ⚖️ <b>Decisões registradas</b> nas páginas</li></ul>`},
+  {id:"avisos",go:"avisos",ic:"🔔",t:"Notificações",r:"Quando alguém fala com você ou algo vence.",b:`
+<p>Você recebe uma notificação quando alguém:</p>
+<ul><li>atribui uma tarefa a você, comenta no que é seu ou menciona você com <b>@</b>;</li>
+<li>conclui uma tarefa sua, adiciona você a um projeto ou pede sua aprovação num documento.</li></ul>
+<p>Todo dia às <b>8h</b> chegam também os lembretes do que vence hoje, do que atrasou e das aprovações pendentes. O número ao lado de “Notificações” mostra quantas você ainda não leu. Clique numa notificação para abrir a tarefa ou a página.</p>`},
+  {id:"painel",go:"painel",ic:"📊",t:"Painel",r:"Como tudo está, em números.",b:`
+<p>Os números do trabalho: tarefas abertas, atrasadas, que vencem em 7 dias, concluídas, entregues no prazo, tempo médio para concluir, paradas aguardando e projetos em risco.</p>
+<ul><li>Escolha o período (30 dias, 90 dias ou 6 meses) e filtre por pessoa, projeto ou prioridade.</li>
+<li>O botão de planilha baixa as tarefas do filtro em um arquivo CSV, que abre no Excel ou no Google Planilhas.</li></ul>`},
+  {id:"busca",ic:"🔎",t:"Buscar tudo",r:"Achar qualquer coisa em segundos.",b:`
+<p>Clique em <b>Buscar tudo</b> no menu (ou tecle <b>Ctrl K</b>, no Mac <b>⌘ K</b>). Procura em tarefas, projetos, páginas, comentários e pessoas. Use as setas ↑↓ e Enter para abrir. Só aparece o que você tem acesso.</p>
+<p>A caixa “Buscar páginas…” do menu da esquerda procura só pelo nome das páginas.</p>`},
+  {id:"ajustes",ic:"⚙️",t:"Etapas do fluxo e Campos personalizados",r:"Ajustar a Central ao jeito do time.",b:`
+<ul><li><b>Etapas do fluxo</b> (no pé do menu): crie colunas do seu processo no kanban, como “Cotação”, “Produção”, “Expedição”. Cada etapa conta como A fazer, Fazendo, Aguardando ou Feito, então os prazos e o Painel continuam certos. Há modelos prontos: Desenvolvimento de produto e Pedido e entrega. No kanban, escolha “Colunas: etapas do fluxo”.</li>
+<li><b>Campos personalizados:</b> campos extras para todas as tarefas, como Cliente, Etiquetas, Valor em R$, Data, Link. Os de seleção também viram filtro e podem agrupar as colunas do kanban.</li></ul>`},
+  {id:"lixeira",go:"lixeira",ic:"🗑️",t:"Lixeira e versões",r:"Nada se perde: dá para desfazer.",b:`
+<ul><li><b>Lixeira:</b> tudo o que for excluído (tarefa, projeto ou página) vai para lá. Clique em restaurar e volta igual estava.</li>
+<li><b>Versões:</b> em cada tarefa, projeto e página, o botão <b>Versões</b> mostra cada vez que alguém salvou. Restaurar uma versão antiga não apaga a atual.</li>
+<li><b>Duas pessoas ao mesmo tempo:</b> se alguém mudou a mesma tarefa enquanto você editava, a Central avisa antes de salvar, para ninguém apagar o trabalho do outro sem querer.</li></ul>`},
+];
+let ajudaSec="",ajudaQ="";
+function abrirAjuda(sec){ajudaSec=sec||"";ajudaQ="";ir("ajuda")}
+const AJUDA_VISTA={hoje:"hoje",rotina:"rotina",minhas:"tarefas",time:"tarefas",projeto:"projetos",projetos:"projetos",comando:"comando",avisos:"avisos",painel:"painel",lixeira:"lixeira"};
+function renderAjuda(){
+  const el=$("#ajuda"),q=chave(ajudaQ),txt=s=>{const d=document.createElement("div");d.innerHTML=s.t+" "+s.r+" "+s.b;return chave(d.textContent)};
+  const l=AJUDA.filter(s=>!q||txt(s).includes(q));
+  el.innerHTML=`<div class="hjtop"><div><div class="big">Como usar a Central</div><div class="sub">Um guia rápido de cada tela. Clique num assunto para abrir.</div></div>
+    <input type="search" id="ajQ" placeholder="Procurar no guia…" autocomplete="off" aria-label="Procurar no guia" style="flex:0 1 260px"></div>
+    <nav class="chips" aria-label="Assuntos">${AJUDA.map(s=>`<button type="button" class="chip" data-ajir="${s.id}">${s.ic} ${esc(s.t)}</button>`).join("")}</nav>
+    ${l.map(s=>`<details class="hjsec ajsec" id="aj-${s.id}" ${q||s.id===ajudaSec?"open":""}><summary><span class="ajic" aria-hidden="true">${s.ic}</span><span><b>${esc(s.t)}</b><small>${esc(s.r)}</small></span></summary>
+      <div class="ajb">${s.b}${s.go?`<div><button type="button" class="btn sm" data-ajgo="${s.go}">Abrir ${esc(s.t.split(" e ")[0])} →</button></div>`:""}</div></details>`).join("")||`<div class="empty">Nada encontrado para “${esc(ajudaQ)}”.</div>`}`;
+  const i=$("#ajQ");i.value=ajudaQ;
+  if(ajudaSec){const d=$("#aj-"+ajudaSec);ajudaSec="";if(d)requestAnimationFrame(()=>d.scrollIntoView({block:"start"}))}
+}
+$("#ajuda").addEventListener("input",e=>{if(e.target.id!=="ajQ")return;ajudaQ=e.target.value;renderAjuda();const i=$("#ajQ");i.focus();i.setSelectionRange(i.value.length,i.value.length)});
+$("#ajuda").addEventListener("click",e=>{const g=e.target.closest("[data-ajgo]");if(g){ir(g.dataset.ajgo);return}
+  const c=e.target.closest("[data-ajir]");if(c){const d=$("#aj-"+c.dataset.ajir);if(!d){ajudaQ="";ajudaSec=c.dataset.ajir;renderAjuda();return}d.open=true;d.scrollIntoView({block:"start",behavior:"smooth"})}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-ajuda]");if(b){e.preventDefault();abrirAjuda(b.dataset.ajuda)}});
+
 /* ---------- render geral ---------- */
-const TITULOS={rotina:["Rotina","O dia a dia que se repete. Marque ✓ quando fizer: a próxima vez já entra sozinha na data certa."],avisos:["Notificações","Quando alguém atribui uma tarefa a você, comenta no que é seu, menciona você com @ ou pede sua aprovação, e os lembretes diários de prazo. Clique para abrir."],comando:["Central de Comando","Tudo o que está travado ou pedindo ação, no time inteiro. Clique num número para ver a lista e numa linha para abrir."],hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."]};
+const TITULOS={rotina:["Rotina","O dia a dia que se repete. Marque ✓ quando fizer: a próxima vez já entra sozinha na data certa."],avisos:["Notificações","Quando alguém atribui uma tarefa a você, comenta no que é seu, menciona você com @ ou pede sua aprovação, e os lembretes diários de prazo. Clique para abrir."],comando:["Central de Comando","Tudo o que está travado ou pedindo ação, no time inteiro. Clique num número para ver a lista e numa linha para abrir."],hoje:["Hoje","O que pede sua atenção agora. Marque ☆ para colocar no seu foco do dia."],minhas:["Minhas tarefas","Suas tarefas pessoais e as do time em que você é o responsável."],time:["Tarefas do time","Tudo o que a equipe está fazendo."],projetos:["Projetos","Agrupe tarefas, entregas e prazos de cada projeto."],painel:["Painel","Como tudo está, em números."],lixeira:["Lixeira","O que foi excluído. Restaure com um clique: volta igual estava."],ajuda:["Como usar","O guia da Central: o que cada tela faz e como usar cada função."]};
 function render(){
   renderSide();
   const quadro=vista==="minhas"||vista==="time"||vista==="projeto",pag=vista==="pagina";
-  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vRotina").hidden=vista!=="rotina";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vComando").hidden=vista!=="comando";$("#vLixeira").hidden=vista!=="lixeira";$("#vAvisos").hidden=vista!=="avisos";$("#vPagina").hidden=!pag;
+  $("#vQuadro").hidden=!quadro;$("#vHoje").hidden=vista!=="hoje";$("#vRotina").hidden=vista!=="rotina";$("#vProjetos").hidden=vista!=="projetos";$("#vPainel").hidden=vista!=="painel";$("#vComando").hidden=vista!=="comando";$("#vLixeira").hidden=vista!=="lixeira";$("#vAvisos").hidden=vista!=="avisos";$("#vAjuda").hidden=vista!=="ajuda";$("#vPagina").hidden=!pag;
   $("#tools").hidden=pag||vista==="projetos"&&false;$("#hbtns").hidden=pag;
   if(!pag){const t=vista==="projeto"?[projDe(projAberto)?.nome||"Projeto","Tarefas, entregas e prazos deste projeto."]:TITULOS[vista];$("#titulo").textContent=t[0];$("#subt").textContent=t[1]}
   renderFiltros(quadro);
   $("#btnNova").disabled=!podeEscrever;$("#btnNovoProj").disabled=!podeEscrever;$("#qadd").hidden=!podeEscrever||!quadro;
   $("#qTitulo").placeholder=vista==="time"?"Tarefa para o time: escreva e tecle Enter…":vista==="projeto"?"Tarefa deste projeto: escreva e tecle Enter…":"Escreva uma tarefa sua e tecle Enter…";
   $("#titulo").hidden=pag;$("#subt").hidden=pag;
+  {const k=pag?"":AJUDA_VISTA[vista]||"",b=$("#btnComo");b.hidden=!k;b.dataset.ajuda=k}
   if(pag){renderPagina();return}
   if(vista==="projetos"){renderProjetos();return}
   if(vista==="painel"){renderPainel();return}
@@ -991,6 +1122,7 @@ function render(){
   if(vista==="rotina"){renderRotina();return}
   if(vista==="lixeira"){renderLixeira();return}
   if(vista==="avisos"){renderAvisos();return}
+  if(vista==="ajuda"){renderAjuda();return}
   renderPHead();renderChipsResp($("#chipsResp"),filtradas(true));
   const base=filtradas();renderAlerta(base);const vis=aplicaRapido(base);
   const m=modoEf();["board","lista","grupos","calend","linha","carga"].forEach(k=>$("#"+k).hidden=true);
@@ -1005,7 +1137,7 @@ function render(){
 const modoEf=()=>vista==="projeto"&&modo==="grupo"?"kanban":modo;
 function renderFiltros(quadro){
   const painel=vista==="painel",projs=vista==="projetos";
-  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="rotina"||vista==="lixeira"||vista==="comando"||vista==="avisos";
+  $("#tools").hidden=vista==="pagina"||vista==="hoje"||vista==="rotina"||vista==="lixeira"||vista==="comando"||vista==="avisos"||vista==="ajuda";
   const mv=$("#modoVis");mv.hidden=!quadro;mv.querySelectorAll("button").forEach(b=>{b.classList.toggle("on",b.dataset.m===modoEf());b.hidden=b.dataset.m==="grupo"&&vista==="projeto"});
   $("#busca").placeholder=projs?"Buscar projeto…":"Buscar tarefa…";
   $("#fProj").hidden=!(quadro||painel)||vista==="projeto";$("#fPrioSel").hidden=!(quadro||painel);$("#fPrioSel").value=fPrio;
@@ -1466,7 +1598,7 @@ function renderHoje(){
   ${secHoje("","Próximos 3 dias úteis",prox,"","")}
   ${secHoje("","Aguardando há 5 dias ou mais",cobrar,"vale cobrar","")}
   ${feitasHoje.length?secHoje("","Concluídas hoje ✓",feitasHoje,"",""):""}
-  ${!ab.length&&!feitasHoje.length?`<div class="empty">Nada pendente para você. Crie uma tarefa em “+ Nova tarefa”${iaSample?" ou peça ao assistente para montar um plano":""}.</div>`:""}`;
+  ${!ab.length&&!feitasHoje.length?`<div class="empty">Nada pendente para você. Crie uma tarefa em “+ Nova tarefa”${iaSample?" ou peça ao assistente para montar um plano":""}. Primeira vez por aqui? <button class="mv" type="button" data-ajuda="comecar">Veja como usar a Central</button></div>`:""}`;
 }
 $("#hoje").addEventListener("click",async e=>{const b=e.target.closest("[data-hj]");if(b){if(b.dataset.hj==="rev")abrirRevisao();else iaAbrir("Monte um plano para o meu dia de hoje: escolha no máximo 5 tarefas para o foco, em ordem, considerando prazos, prioridades e bloqueios. Proponha também novos prazos para o que não cabe hoje.");return}
   const r=e.target.closest(".hr[data-id]");if(!r)return;const t=todas().find(x=>x.id===r.dataset.id);if(!t)return;
